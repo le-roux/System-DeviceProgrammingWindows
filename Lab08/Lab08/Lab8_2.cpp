@@ -21,7 +21,7 @@ int ex2(int argc, LPTSTR argv[]) {
 	DWORD nOut;
 	
 	if (argc != 3) {
-		fprintf(stderr, "Wrong number of arguments.\n Usage : %s inputFile outputFile", argv[0]);
+		_ftprintf(stderr, _T("Wrong number of arguments.\n Usage : %s inputFile outputFile"), argv[0]);
 		return 1;
 	}
 	
@@ -36,7 +36,7 @@ int ex2(int argc, LPTSTR argv[]) {
 	
 	Record  record;
 	//Actual conversion froò ASCII to binary format
-	while (_ftscanf(inputFile, "%i %i %s %s %i", &record.lineNumber, &record.registerNumber, &record.name, &record.surname, &record.mark) > 0) {
+	while (_ftscanf(inputFile, _T("%i %i %s %s %i"), &record.lineNumber, &record.registerNumber, &record.name, &record.surname, &record.mark) > 0) {
 		WriteFile(hOut, &record, sizeof(Record), &nOut, NULL);
 	}
 	
@@ -48,7 +48,7 @@ int ex2(int argc, LPTSTR argv[]) {
 
 	hOut = CreateFile(argv[2], GENERIC_READ, 0, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
 	if(hOut == INVALID_HANDLE_VALUE) {
-		fprintf(stderr, "Error when reopening the output file");
+		_ftprintf(stderr, _T("Error when reopening the output file"));
 		return 1;
 	}
 	
@@ -60,9 +60,9 @@ int ex2(int argc, LPTSTR argv[]) {
 	//Read the binary file and print it to the console
 	while(ReadFile(hOut, &record, sizeof(Record), &nIn, NULL) && nIn > 0) {
 		WriteFile(console, &record, sizeof(Record), &nOut, NULL);
-		fprintf(stdout, "\n%i %i %s %s %i\n", record.lineNumber, record.registerNumber, record.name, record.surname, record.mark);
+		_ftprintf(stdout, _T("\n%i %i %s %s %i\n"), record.lineNumber, record.registerNumber, record.name, record.surname, record.mark);
 		if (nIn != nOut) {
-			fprintf(stderr, "Error writing to console");
+			_ftprintf(stderr, _T("Error writing to console"));
 			CloseHandle(hOut);
 			return 1;
 		}
@@ -70,7 +70,7 @@ int ex2(int argc, LPTSTR argv[]) {
 
 	//Wait some input to allow the user to have time to read the console
 	char a;
-	fscanf(stdin, "%c", &a);
+	_ftscanf(stdin, _T("%c"), &a);
 	
 	CloseHandle(hOut);
 	return 0;

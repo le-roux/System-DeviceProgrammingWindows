@@ -26,7 +26,7 @@ void ReadRecordWithFilePointer(HANDLE hIn, int lineNumber) {
 		return;
 	}
 	ReadFile(hIn, &record, sizeof(Record), &nIn, NULL);
-	fprintf(stdout, "%i %i %s %s %i\n", record.lineNumber, record.registerNumber, record.name, record.surname, record.mark);
+	_ftprintf(stdout, _T("%i %i %s %s %i\n"), record.lineNumber, record.registerNumber, record.name, record.surname, record.mark);
 }
 
 //Version B
@@ -39,7 +39,7 @@ void ReadRecordWithOverlapped(HANDLE hIn, int lineNumber) {
 	ov.Offset = filePos.LowPart;
 	ov.OffsetHigh = filePos.HighPart;
 	ReadFile(hIn, &record, sizeof(Record), &nIn, &ov);
-	fprintf(stdout, "%i %i %s %s %i\n", record.lineNumber, record.registerNumber, record.name, record.surname, record.mark);
+	_ftprintf(stdout, _T("%i %i %s %s %i\n"), record.lineNumber, record.registerNumber, record.name, record.surname, record.mark);
 }
 
 void WriteRecord(HANDLE hIn, int lineNumber, Record record) {
