@@ -15,7 +15,22 @@ typedef struct Record {
 	int mark;
 } Record;
 
-void ReadRecord(HANDLE hIn, int lineNumber) {
+//Version A
+void ReadRecordWithFilePointer(HANDLE hIn, int lineNumber) {
+	Record record;
+	DWORD nIn;
+	LONG offset = (lineNumber - 1) * sizeof(Record);
+	DWORD move = SetFilePointer(hIn, offset, NULL, FILE_BEGIN);
+	if (0xFFFFFFFF == move) {
+		_ftprintf(stderr, _T("Error %i\n"), GetLastError());
+		return;
+	}
+	ReadFile(hIn, &record, sizeof(Record), &nIn, NULL);
+	fprintf(stdout, "%i %i %s %s %i\n", record.lineNumber, record.registerNumber, record.name, record.surname, record.mark);
+}
+
+//Version B
+void ReadRecordWithOverlapped(HANDLE hIn, int lineNumber) {
 	Record record;
 	DWORD nIn;
 	OVERLAPPED ov = { 0, 0, 0, 0, NULL };
@@ -59,8 +74,8 @@ int _tmain(int argc, LPTSTR argv[]) {
 		} else if (command == 'R') {
 			int lineNumber;
 			_ftscanf(stdin, _T("%i"), &lineNumber);
-			if (lineNumber > 1)
-				ReadRecord(hIn, lineNumber);
+			if (lineNumber >= 1)
+				ReadRecordWithFilePointer(hIn, lineNumber);
 			else
 				_ftprintf(stdin, _T("Wrong record number\n"));
 		} else if (command == 'W') {
