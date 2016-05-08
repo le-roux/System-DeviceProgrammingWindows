@@ -19,7 +19,7 @@ typedef struct Record {
 	INT mark;
 } Record;
 
-INT _tmain(INT argc, LPTSTR argv[]) {
+INT ex2(INT argc, LPTSTR argv[]) {
 	FILE* inputFile;
 	HANDLE hOut;
 	DWORD nOut;

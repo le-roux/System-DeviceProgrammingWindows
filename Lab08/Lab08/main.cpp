@@ -1,3 +1,6 @@
+#define UNICODE
+#define _UNICODE
+
 #ifdef _MSC_VER
 #define _CRT_SECURE_NO_WARNINGS
 #endif
@@ -52,7 +55,7 @@ void WriteRecord(HANDLE hIn, int lineNumber, Record record) {
 	WriteFile(hIn, &record, sizeof(Record), &nOut, &ov);
 }
 
-int ex3(int argc, LPTSTR argv[]) {
+int _tmain(int argc, LPTSTR argv[]) {
 	
 	HANDLE hIn;
 
