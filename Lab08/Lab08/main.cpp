@@ -52,7 +52,7 @@ void WriteRecord(HANDLE hIn, int lineNumber, Record record) {
 	WriteFile(hIn, &record, sizeof(Record), &nOut, &ov);
 }
 
-int _tmain(int argc, LPTSTR argv[]) {
+int ex3(int argc, LPTSTR argv[]) {
 	
 	HANDLE hIn;
 
