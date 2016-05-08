@@ -83,8 +83,10 @@ int _tmain(int argc, LPTSTR argv[]) {
 				_ftprintf(stdin, _T("Wrong record number\n"));
 		} else if (command == 'W') {
 			Record newRecord;
+			INT lineNumber;
+			_ftscanf(stdin, _T("%i"), &lineNumber);
 			_ftscanf(stdin, _T("%i %i %s %s %i"), &newRecord.lineNumber, &newRecord.registerNumber, &newRecord.name, &newRecord.surname, &newRecord.mark);
-			WriteRecord(hIn, newRecord.lineNumber, newRecord);
+			WriteRecord(hIn, lineNumber, newRecord);
 		}
 	}
 
