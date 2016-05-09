@@ -32,6 +32,16 @@ void ReadRecordWithFilePointer(HANDLE hIn, int lineNumber) {
 	_ftprintf(stdout, _T("%i %i %s %s %i\n"), record.lineNumber, record.registerNumber, record.name, record.surname, record.mark);
 }
 
+void WriteRecordWithFilePointer(HANDLE hIn, int lineNumber, Record record) {
+	DWORD move = SetFilePointer(hIn, (lineNumber - 1) * sizeof(Record), NULL, FILE_BEGIN);
+	if (move == 0xFFFFFFFF) {
+		_ftprintf(stderr, _T("Error %i\n"), GetLastError());
+		return;
+	}
+	DWORD nOut;
+	WriteFile(hIn, &record, sizeof(Record), &nOut, NULL);
+}
+
 //Version B
 void ReadRecordWithOverlapped(HANDLE hIn, int lineNumber) {
 	Record record;
@@ -45,7 +55,7 @@ void ReadRecordWithOverlapped(HANDLE hIn, int lineNumber) {
 	_ftprintf(stdout, _T("%i %i %s %s %i\n"), record.lineNumber, record.registerNumber, record.name, record.surname, record.mark);
 }
 
-void WriteRecord(HANDLE hIn, int lineNumber, Record record) {
+void WriteRecordWithOverlapped(HANDLE hIn, int lineNumber, Record record) {
 	OVERLAPPED ov = { 0, 0, 0, 0, NULL };
 	LARGE_INTEGER filePos;
 	filePos.QuadPart = (lineNumber - 1) * sizeof(Record);
@@ -124,7 +134,7 @@ int _tmain(int argc, LPTSTR argv[]) {
 			int lineNumber;
 			_ftscanf(stdin, _T("%i"), &lineNumber);
 			if (lineNumber >= 1)
-				ReadRecordWithLocking(hIn, lineNumber);
+				ReadRecordWithFilePointer(hIn, lineNumber);
 			else
 				_ftprintf(stdin, _T("Wrong record number\n"));
 		} else if (command == 'W') {
@@ -132,7 +142,7 @@ int _tmain(int argc, LPTSTR argv[]) {
 			INT lineNumber;
 			_ftscanf(stdin, _T("%i"), &lineNumber);
 			_ftscanf(stdin, _T("%i %i %s %s %i"), &newRecord.lineNumber, &newRecord.registerNumber, &newRecord.name, &newRecord.surname, &newRecord.mark);
-			WriteRecordWithLocking(hIn, lineNumber, newRecord);
+			WriteRecordWithFilePointer(hIn, lineNumber, newRecord);
 		}
 	}
 
