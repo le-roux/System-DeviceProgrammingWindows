@@ -55,6 +55,52 @@ void WriteRecord(HANDLE hIn, int lineNumber, Record record) {
 	WriteFile(hIn, &record, sizeof(Record), &nOut, &ov);
 }
 
+//Version C
+void ReadRecordWithLocking(HANDLE hIn, int lineNumber) {
+	Record record;
+	OVERLAPPED ov = { 0, 0, 0, 0, NULL };
+	LARGE_INTEGER offset;
+	offset.QuadPart = (lineNumber - 1) * sizeof(Record);
+	ov.Offset = offset.LowPart;
+	ov.OffsetHigh = offset.HighPart;
+	LARGE_INTEGER lockRange;
+	lockRange.QuadPart = sizeof(Record);
+	BOOLEAN result;
+	result = LockFileEx(hIn, 0, 0, lockRange.LowPart, lockRange.HighPart, &ov);
+	if (result) {
+		DWORD nOut;
+		ReadFile(hIn, &record, sizeof(Record), &nOut, &ov);
+		_ftprintf(stdout, _T("%i %i %s %s %i\n"), record.lineNumber, record.registerNumber, record.name, record.surname, record.mark);
+		result = UnlockFileEx(hIn, 0, lockRange.LowPart, lockRange.HighPart, &ov);
+		if (!result) {
+			_ftprintf(stderr, _T("Error when releasing the lock\n"));
+		}
+	} else {
+		_ftprintf(stderr, _T("Error when acquiring the lock\n"));
+	}
+}
+
+void WriteRecordWithLocking(HANDLE hIn, int lineNumber, Record record) {
+	OVERLAPPED ov = { 0, 0, 0, 0, NULL };
+	LARGE_INTEGER filePos;
+	filePos.QuadPart = (lineNumber - 1) * sizeof(Record);
+	ov.Offset = filePos.LowPart;
+	ov.OffsetHigh = filePos.HighPart;
+	DWORD nOut;
+	LARGE_INTEGER lockRange;
+	lockRange.QuadPart = sizeof(Record);
+	BOOLEAN result;
+	result = LockFileEx(hIn, LOCKFILE_EXCLUSIVE_LOCK, 0, lockRange.LowPart, lockRange.HighPart, &ov);
+	if (result) {
+		WriteFile(hIn, &record, sizeof(Record), &nOut, &ov);
+		result = UnlockFileEx(hIn, 0, lockRange.LowPart, lockRange.HighPart, &ov);
+		if (!result)
+			_ftprintf(stderr, _T("Error when releasing the lock\n"));
+	} else {
+		_ftprintf(stderr, _T("Error when acquiring the lock\n"));
+	}
+}
+
 int _tmain(int argc, LPTSTR argv[]) {
 	
 	HANDLE hIn;
@@ -78,7 +124,7 @@ int _tmain(int argc, LPTSTR argv[]) {
 			int lineNumber;
 			_ftscanf(stdin, _T("%i"), &lineNumber);
 			if (lineNumber >= 1)
-				ReadRecordWithFilePointer(hIn, lineNumber);
+				ReadRecordWithLocking(hIn, lineNumber);
 			else
 				_ftprintf(stdin, _T("Wrong record number\n"));
 		} else if (command == 'W') {
@@ -86,7 +132,7 @@ int _tmain(int argc, LPTSTR argv[]) {
 			INT lineNumber;
 			_ftscanf(stdin, _T("%i"), &lineNumber);
 			_ftscanf(stdin, _T("%i %i %s %s %i"), &newRecord.lineNumber, &newRecord.registerNumber, &newRecord.name, &newRecord.surname, &newRecord.mark);
-			WriteRecord(hIn, lineNumber, newRecord);
+			WriteRecordWithLocking(hIn, lineNumber, newRecord);
 		}
 	}
 
