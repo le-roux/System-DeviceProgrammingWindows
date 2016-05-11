@@ -47,9 +47,17 @@ INT _tmain(INT argc, LPTSTR argv[]) {
 		return 1;
 	}
 	DWORD nOut;
+	WriteFile(hOut, &args[0].recordNumber, sizeof(INT), &nOut, NULL);
+	if (nOut != sizeof(INT)) {
+		_ftprintf(stderr, _T("Error when writing"));
+		CloseHandle(hOut);
+		return 1;
+	}
 	WriteFile(hOut, args[0].listPointer, size * sizeof(INT), &nOut, NULL);
 	if (nOut != size * sizeof(INT)) {
 		_ftprintf(stderr, _T("Error when writing"));
+		CloseHandle(hOut);
+		return 1;
 	}
 	CloseHandle(hOut);
 
@@ -94,26 +102,25 @@ DWORD WINAPI sort(LPVOID args) {
 	}
 	DWORD recordNb, nOut;
 	ReadFile(hIn, &recordNb, sizeof(DWORD), &nOut, NULL);
-	INT* list = (INT*)malloc(recordNb * sizeof(INT));
 	arg->recordNumber = recordNb;
-	arg->listPointer = list;
-	ReadFile(hIn, list, recordNb * sizeof(INT), &nOut, NULL);
+	arg->listPointer = (INT*)malloc(recordNb * sizeof(INT));
+	ReadFile(hIn, arg->listPointer, recordNb * sizeof(INT), &nOut, NULL);
+	if (nOut != recordNb * sizeof(INT)) {
+		_ftprintf(stderr, _T("Error when reading file"));
+		ExitThread(1);
+	}
 	CloseHandle(hIn);
 	for (DWORD i = 0; i < recordNb; i++) {
 		DWORD index = i;
 		DWORD tmp;
 		//Bubble sort
-		while (index > 0 && list[index - 1] < list[index]) {
-			tmp = list[index - 1];
-			list[index - 1] = list[index];
-			list[index] = tmp;
+		while (index > 0 && arg->listPointer[index - 1] > arg->listPointer[index]) {
+			tmp = arg->listPointer[index - 1];
+			arg->listPointer[index - 1] = arg->listPointer[index];
+			arg->listPointer[index] = tmp;
 			index--;
 		}
 	}
-	for (DWORD i = 0; i < arg->recordNumber, i++) {
-		_ftprintf(stdout, _T("%i "), arg->listPointer[i]);
-	}
-	_ftprintf(stdout, _T("\n"));
 	ExitThread(0);
 }
 

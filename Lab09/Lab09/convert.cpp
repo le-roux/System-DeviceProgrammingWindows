@@ -59,7 +59,7 @@ INT convert(INT argc, LPTSTR argv[]) {
 	//Read the binary file and print it to the console
 	while (ReadFile(hOut, &read, sizeof(INT), &nIn, NULL) && nIn > 0) {
 		_ftprintf(stdout, _T("%i "), read);
-		if (nIn != nOut) {
+		if (nIn != sizeof(INT)) {
 			_ftprintf(stderr, _T("Error writing to console"));
 			CloseHandle(hOut);
 			return 1;
