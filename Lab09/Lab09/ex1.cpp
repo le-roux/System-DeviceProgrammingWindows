@@ -8,19 +8,9 @@
 #include <windows.h>
 #include <stdio.h>
 #include <tchar.h>
+#include "lab09.h"
 
-DWORD WINAPI sort(LPVOID);
-VOID merge(DWORD size1, INT* list1, DWORD size2, INT* list2, INT* out);
-
-typedef struct ARGS {
-	LPTSTR fileName;
-	DWORD recordNumber;
-	INT* listPointer;
-} ARGS;
-
-ARGS* args;
-
-INT _tmain(INT argc, LPTSTR argv[]) {
+INT ex1(INT argc, LPTSTR argv[]) {
 	DWORD fileNb = argc - 2;
 	HANDLE* threadsHandles = (HANDLE*)malloc(fileNb * sizeof(HANDLE));
 	LPDWORD threadsIds = (LPDWORD)malloc(fileNb * sizeof(DWORD));
