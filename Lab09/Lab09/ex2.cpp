@@ -10,7 +10,7 @@
 #include <tchar.h>
 #include "lab09.h"
 
-INT _tmain(INT argc, LPTSTR argv[]) {
+INT ex2(INT argc, LPTSTR argv[]) {
 	DWORD fileNb = argc - 2;
 	HANDLE* threadsHandles = (HANDLE*)malloc(fileNb * sizeof(HANDLE));
 	INT* translation = (INT*)malloc(fileNb * sizeof(BOOL));

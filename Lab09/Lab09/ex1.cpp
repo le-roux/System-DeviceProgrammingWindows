@@ -10,7 +10,7 @@
 #include <tchar.h>
 #include "lab09.h"
 
-INT ex1(INT argc, LPTSTR argv[]) {
+INT _tmain(INT argc, LPTSTR argv[]) {
 	DWORD fileNb = argc - 2;
 	HANDLE* threadsHandles = (HANDLE*)malloc(fileNb * sizeof(HANDLE));
 	LPDWORD threadsIds = (LPDWORD)malloc(fileNb * sizeof(DWORD));
@@ -29,6 +29,9 @@ INT ex1(INT argc, LPTSTR argv[]) {
 		args[0].recordNumber = size;
 		free(args[0].listPointer);
 		args[0].listPointer = out;
+	}
+	for (DWORD i = 0; i < fileNb; i++) {
+		CloseHandle(threadsHandles[i]);
 	}
 	//Write it in the output file
 	HANDLE hOut = CreateFile(argv[argc - 1], GENERIC_WRITE, 0, NULL, OPEN_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
