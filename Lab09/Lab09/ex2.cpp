@@ -10,12 +10,19 @@
 #include <tchar.h>
 #include "lab09.h"
 
-INT ex2(INT argc, LPTSTR argv[]) {
+INT _tmain(INT argc, LPTSTR argv[]) {
 	DWORD fileNb = argc - 2;
 	HANDLE* threadsHandles = (HANDLE*)malloc(fileNb * sizeof(HANDLE));
+	/* Used like a map : index = (true) number of the thread
+						 value = value returned by WaitForMultipleObjects(...)
+		This array, in combination with WaitForMultipleObjects(...),
+		allows to know which thread has terminated.					 
+	*/
 	INT* translation = (INT*)malloc(fileNb * sizeof(BOOL));
 	LPDWORD threadsIds = (LPDWORD)malloc(fileNb * sizeof(DWORD));
 	args = (ARGS*)malloc(fileNb * sizeof(ARGS));
+
+	//Create the sorting threads.
 	for (DWORD i = 0; i < fileNb; i++) {
 		args[i].fileName = argv[i + 1];
 		threadsHandles[i] = CreateThread(NULL, 0, sort, &args[i], 0, &threadsIds[i]);
@@ -38,14 +45,21 @@ INT ex2(INT argc, LPTSTR argv[]) {
 				index++;
 			}
 			DWORD threadJustTerminated = index;
-			CloseHandle(threadsHandles[res - WAIT_OBJECT_0]);
+			BOOL ret = CloseHandle(threadsHandles[res - WAIT_OBJECT_0]);
+			if (ret == FALSE)
+				_ftprintf(stderr, _T("Error %i when closing the file\n"), GetLastError());
+
+			//Update the position of the threads in order to keep data meaningful.
 			for (DWORD i = res - WAIT_OBJECT_0; i < fileNb - nbThreadsTerminated; i++) {
 					threadsHandles[i] = threadsHandles[i + 1];
 			}
+
 			for (DWORD i = threadJustTerminated; i < fileNb; i++) {
 				translation[i]--;
 			}
+
 			translation[threadJustTerminated] = -1;
+
 			if (nbThreadsTerminated >= 2) {
 				//Merge
 				size = args[firstThreadTerminated].recordNumber + args[threadJustTerminated].recordNumber;
@@ -70,45 +84,28 @@ INT ex2(INT argc, LPTSTR argv[]) {
 	WriteFile(hOut, &args[firstThreadTerminated].recordNumber, sizeof(INT), &nOut, NULL);
 	if (nOut != sizeof(INT)) {
 		_ftprintf(stderr, _T("Error when writing"));
-		CloseHandle(hOut);
+		BOOL ret = CloseHandle(hOut);
+		if (ret == FALSE)
+			_ftprintf(stderr, _T("Error %i when closing the file\n"), GetLastError());
 		return 1;
 	}
 	WriteFile(hOut, args[firstThreadTerminated].listPointer, size * sizeof(INT), &nOut, NULL);
 	if (nOut != size * sizeof(INT)) {
 		_ftprintf(stderr, _T("Error when writing"));
-		CloseHandle(hOut);
+		BOOL ret = CloseHandle(hOut);
+		if (ret == FALSE)
+			_ftprintf(stderr, _T("Error %i when closing the file\n"), GetLastError());
 		return 1;
 	}
-	CloseHandle(hOut);
+	BOOL ret = CloseHandle(hOut);
+	if (ret == FALSE)
+		_ftprintf(stderr, _T("Error %i when closing the file\n"), GetLastError());
 
+	//Display the content of the result file.
+	ret = ControlRead(argv[argc - 1]);
+	if (ret == FALSE)
+		_ftprintf(stderr, _T("Error when displaying the result"));
 
-	//Read the binary output file to see if everything worked well
-	hOut = CreateFile(argv[argc - 1], GENERIC_READ, 0, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
-	if (hOut == INVALID_HANDLE_VALUE) {
-		_ftprintf(stderr, _T("Error when reopening the output file"));
-		return 1;
-	}
-
-	DWORD nIn;
-	HANDLE console;
-
-	console = GetStdHandle(STD_OUTPUT_HANDLE);
-	INT read;
-	//Read the binary file and print it to the console
-	while (ReadFile(hOut, &read, sizeof(INT), &nIn, NULL) && nIn > 0) {
-		_ftprintf(stdout, _T("%i "), read);
-		if (nIn != sizeof(INT)) {
-			_ftprintf(stderr, _T("Error writing to console"));
-			CloseHandle(hOut);
-			return 1;
-		}
-	}
-
-	//Wait some input to allow the user to have time to read the console
-	TCHAR a;
-	_ftscanf(stdin, _T("%c"), &a);
-
-	CloseHandle(hOut);
 	return 0;
 }
 
@@ -122,6 +119,11 @@ DWORD WINAPI sort(LPVOID args) {
 	}
 	DWORD recordNb, nOut;
 	ReadFile(hIn, &recordNb, sizeof(DWORD), &nOut, NULL);
+	if (nOut != sizeof(DWORD)) {
+		_ftprintf(stderr, _T("Error when reading the file\n"));
+		ExitThread(1);
+	}
+
 	arg->recordNumber = recordNb;
 	arg->listPointer = (INT*)malloc(recordNb * sizeof(INT));
 	ReadFile(hIn, arg->listPointer, recordNb * sizeof(INT), &nOut, NULL);
@@ -129,7 +131,11 @@ DWORD WINAPI sort(LPVOID args) {
 		_ftprintf(stderr, _T("Error when reading file"));
 		ExitThread(1);
 	}
-	CloseHandle(hIn);
+
+	BOOL ret = CloseHandle(hIn);
+	if (ret == FALSE)
+		_ftprintf(stderr, _T("Error %i when closing the file"), GetLastError());
+
 	for (DWORD i = 0; i < recordNb; i++) {
 		DWORD index = i;
 		DWORD tmp;
@@ -168,4 +174,44 @@ VOID merge(DWORD size1, INT* list1, DWORD size2, INT* list2, INT* out) {
 		j++;
 		index++;
 	}
+}
+
+BOOL ControlRead(LPTSTR lpfileName) {
+	HANDLE hOut = CreateFile(lpfileName, GENERIC_READ, 0, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
+	if (hOut == INVALID_HANDLE_VALUE) {
+		_ftprintf(stderr, _T("Error when reopening the output file"));
+		return FALSE;
+	}
+
+	DWORD nIn;
+	HANDLE console;
+
+	console = GetStdHandle(STD_OUTPUT_HANDLE);
+	if (console == INVALID_HANDLE_VALUE) {
+		_ftprintf(stderr, _T("Error %i when closing the handle"), GetLastError());
+		return FALSE;
+	}
+
+	INT read;
+	//Read the binary file and print it to the console
+	while (ReadFile(hOut, &read, sizeof(INT), &nIn, NULL) && nIn > 0) {
+		_ftprintf(stdout, _T("%i "), read);
+		if (nIn != sizeof(INT)) {
+			_ftprintf(stderr, _T("Error writing to console"));
+			BOOL ret = CloseHandle(hOut);
+			if (ret == FALSE)
+				_ftprintf(stderr, _T("Error %i when closing the handle"), GetLastError());
+			return FALSE;
+		}
+	}
+
+	//Wait some input to allow the user to have time to read the console
+	TCHAR a;
+	_ftscanf(stdin, _T("%c"), &a);
+
+	BOOL ret = CloseHandle(hOut);
+	if (ret == FALSE)
+		_ftprintf(stderr, _T("Error %i when closing the handle"), GetLastError());
+
+	return TRUE;
 }
