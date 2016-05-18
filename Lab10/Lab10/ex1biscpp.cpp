@@ -10,7 +10,7 @@
 #define TYPE_DIR 1
 #define TYPE_DOT 2
 
-VOID exploreDirectory(LPTSTR name, LPTSTR DestinationDirectory);
+VOID exploreDirectory(LPTSTR name, LPTSTR destinationDirectory);
 static DWORD FileType(LPWIN32_FIND_DATA fileInfo);
 
 INT _tmain(INT argc, LPTSTR argv[]) {
@@ -22,24 +22,22 @@ INT _tmain(INT argc, LPTSTR argv[]) {
 
 	//Wait some input to allow the user to have time to read the console
 	TCHAR a;
-	//_ftscanf(stdin, _T("%c"), &a);
+	_ftscanf(stdin, _T("%c"), &a);
 	return 0;
 }
 
-VOID exploreDirectory(LPTSTR name, LPTSTR DestinationDirectory) {
-	LPTSTR pattern = (LPTSTR)malloc(_tcslen(name + sizeof(TCHAR)));
+VOID exploreDirectory(LPTSTR name, LPTSTR destinationDirectory) {
+	BOOL ret;
+	LPTSTR pattern;
+	LPWIN32_FIND_DATA fileInfo;
+	HANDLE dir;
+	pattern = (LPTSTR)malloc(_tcslen(name + sizeof(TCHAR)));
 	_tcscpy(pattern, name);
 	_tcscat(pattern, _T("*"));
-	LPWIN32_FIND_DATA fileInfo = (LPWIN32_FIND_DATA)malloc(sizeof(WIN32_FIND_DATA));
-	HANDLE dir = FindFirstFile(pattern, fileInfo);
+	fileInfo = (LPWIN32_FIND_DATA)malloc(sizeof(WIN32_FIND_DATA));
+	dir = FindFirstFile(pattern, fileInfo);
 	if (dir == INVALID_HANDLE_VALUE) {
 		_ftprintf(stderr, _T("Error when reading directory %s\nError : %i"), name, GetLastError());
-		return;
-	}
-
-	BOOL ret = CreateDirectory(DestinationDirectory, NULL);
-	if (ret == FALSE) {
-		_ftprintf(stderr, _T("Impossible to create directory %s\n"), DestinationDirectory);
 		return;
 	}
 
@@ -50,25 +48,12 @@ VOID exploreDirectory(LPTSTR name, LPTSTR DestinationDirectory) {
 			_tcscat(newSourceDirectory, fileInfo->cFileName);
 			_tcscat(newSourceDirectory, _T("/"));
 
-			LPTSTR newDestinationDirectory = (LPTSTR)malloc(_tcslen(DestinationDirectory) + _tcslen(fileInfo->cFileName) + sizeof(TCHAR));
-			_tcscpy(newDestinationDirectory, DestinationDirectory);
-			_tcscat(newDestinationDirectory, _T("/"));
-			_tcscat(newDestinationDirectory, fileInfo->cFileName);
-
-			exploreDirectory(newSourceDirectory, newDestinationDirectory);
-		} else if (FileType(fileInfo) == TYPE_FILE) {
-			LPTSTR newFile = (LPTSTR)malloc(_tcslen(DestinationDirectory) + 2 * sizeof(TCHAR) + _tcslen(fileInfo->cFileName));
-			_tcscpy(newFile, DestinationDirectory);
-			_tcscat(newFile, _T("/"));
-			_tcscat(newFile, fileInfo->cFileName);
-			HANDLE DestinationFile = CreateFile(newFile, GENERIC_WRITE, 0, NULL, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
-			if (DestinationFile == INVALID_HANDLE_VALUE) {
-				_ftprintf(stderr, _T("Error %i when creating file %s\n"), GetLastError(), newFile);
-				return;
-			}
-			_ftprintf(stdout, _T("file %s\n"), fileInfo->cFileName);
-			CloseHandle(DestinationFile);
+			exploreDirectory(newSourceDirectory, destinationDirectory);
 		}
+		else if (FileType(fileInfo) == TYPE_FILE) {
+			_ftprintf(stdout, _T("file %s\n"), fileInfo->cFileName);
+		}
+
 	} while (FindNextFile(dir, fileInfo));
 	ret = FindClose(dir);
 	if (ret == FALSE) {
@@ -83,7 +68,8 @@ static DWORD FileType(LPWIN32_FIND_DATA fileInfo) {
 		if (_tcscmp(fileInfo->cFileName, _T(".")) == 0
 			|| _tcscmp(fileInfo->cFileName, _T("..")) == 0) {
 			fileType = TYPE_DOT;
-		} else
+		}
+		else
 			fileType = TYPE_DIR;
 	}
 	return fileType;
