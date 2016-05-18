@@ -31,7 +31,7 @@ DWORD WINAPI compare(LPVOID arg);
 static DWORD FileType(LPWIN32_FIND_DATA fileInfo);
 
 INT _tmain(INT argc, LPTSTR argv[]) {
-	if (argc == 1) {
+	if (argc < 3) {
 		_ftprintf(stderr, _T("Wrong number of arguments\nUsage : %s + N directories"), argv[0]);
 		return 1;
 	}
@@ -68,7 +68,8 @@ INT _tmain(INT argc, LPTSTR argv[]) {
 		argsList[i].threadNb = i;
 		handles[i] = CreateThread(NULL, 0, readingThread, &argsList[i], 0, &threadsId[i]);
 	}
-	result = WaitForSingleObject(comparator, INFINITE);
+	WaitForSingleObject(comparator, INFINITE);
+	GetExitCodeThread(comparator, &result);
 	if (result == 0) {
 		_ftprintf(stdout, _T("Directories are equal\n"));
 	}
@@ -86,6 +87,14 @@ DWORD WINAPI readingThread(LPVOID arg) {
 	ARGS* Arg;
 	Arg = (ARGS*)arg;
 	exploreDirectory(Arg->dirName, GetCurrentThreadId(), Arg->threadNb);
+	entries[Arg->threadNb] = _T("");
+	EnterCriticalSection(&criticalSection);
+	counter++;
+	if (counter == nbThreads) {
+		PulseEvent(eventComparator);
+	}
+	LeaveCriticalSection(&criticalSection);
+	WaitForSingleObject(eventReaders, INFINITE);
 	return 0;
 }
 
@@ -130,9 +139,16 @@ DWORD WINAPI compare(LPVOID arg) {
 	while (1) {
 		WaitForSingleObject(eventComparator, INFINITE);
 		for (DWORD i = 0; i < nbThreads - 1; i++) {
-			if (!_tcscmp(entries[i], entries[i + 1])) {
+			if (_tcscmp(entries[i], entries[i + 1])) {
 				ExitThread(1);
 			}
+		}
+		DWORD i = 0;
+		while (i < nbThreads && !_tcscmp(entries[i], _T(""))) {
+			i++;
+		}
+		if (i == nbThreads) {
+			ExitThread(0);
 		}
 		EnterCriticalSection(&criticalSection);
 		counter = 0;
