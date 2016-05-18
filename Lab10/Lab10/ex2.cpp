@@ -11,7 +11,7 @@
 #define TYPE_DOT 2
 
 static DWORD FileType(LPWIN32_FIND_DATA fileInfo);
-DWORD WINAPI threadFunction(LPVOID arg);
+DWORD WINAPI readingThread(LPVOID arg);
 VOID exploreDirectory(LPTSTR dirName, DWORD threadId);
 
 INT _tmain(INT argc, LPTSTR argv[]) {
@@ -27,13 +27,13 @@ INT _tmain(INT argc, LPTSTR argv[]) {
 	handles = (HANDLE*)malloc(nbThreads * sizeof(HANDLE));
 	threadsId = (DWORD*)malloc(nbThreads * sizeof(DWORD));
 	for (DWORD i = 0; i < nbThreads; i++) {
-		handles[i] = CreateThread(NULL, 0, threadFunction, argv[i + 1], 0, &threadsId[i]);
+		handles[i] = CreateThread(NULL, 0, readingThread, argv[i + 1], 0, &threadsId[i]);
 	}
 	WaitForMultipleObjects(nbThreads, handles, TRUE, INFINITE);
 	return 0;
 }
 
-DWORD WINAPI threadFunction(LPVOID arg) {
+DWORD WINAPI readingThread(LPVOID arg) {
 	LPTSTR dirName;
 	dirName = (LPTSTR)arg;
 	exploreDirectory(dirName, GetCurrentThreadId());
