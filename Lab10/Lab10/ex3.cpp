@@ -1,34 +1,4 @@
-#define UNICODE
-#define _UNICODE
-
-#define _CRT_SECURE_NO_WARNINGS
-
-#include <windows.h>
-#include <tchar.h>
-
-#define TYPE_FILE 0
-#define TYPE_DIR 1
-#define TYPE_DOT 2
-
-volatile LPTSTR* entries;
-
-
-typedef struct ARGS {
-	LPTSTR dirName;
-	DWORD threadNb;
-} ARGS;
-
-volatile DWORD counter;
-DWORD nbThreads;
-ARGS* argsList;
-CRITICAL_SECTION criticalSection;
-HANDLE eventReaders;
-HANDLE eventComparator;
-
-DWORD WINAPI readingThread(LPVOID arg);
-VOID exploreDirectory(LPTSTR dirName, DWORD threadId, DWORD threadNb);
-DWORD WINAPI compare(LPVOID arg);
-static DWORD FileType(LPWIN32_FIND_DATA fileInfo);
+#include "lab10.h"
 
 INT _tmain(INT argc, LPTSTR argv[]) {
 	if (argc < 3) {
@@ -64,7 +34,7 @@ INT _tmain(INT argc, LPTSTR argv[]) {
 		return 1;
 	}
 	for (DWORD i = 0; i < nbThreads; i++) {
-		argsList[i].dirName = argv[i + 1];
+		argsList[i].dirName = addFinalSlash(argv[i + 1]);
 		argsList[i].threadNb = i;
 		handles[i] = CreateThread(NULL, 0, readingThread, &argsList[i], 0, &threadsId[i]);
 	}
@@ -171,4 +141,19 @@ static DWORD FileType(LPWIN32_FIND_DATA fileInfo) {
 			fileType = TYPE_DIR;
 	}
 	return fileType;
+}
+
+LPTSTR addFinalSlash(LPTSTR input) {
+	DWORD length;
+	LPTSTR output;
+	length = _tcslen(input);
+	if (input[length - 1] == '/') {
+		return input;
+	}
+	else {
+		output = (LPTSTR)malloc(length * sizeof(TCHAR));
+		_tcscpy(output, input);
+		_tcscat(output, _T("/"));
+		return output;
+	}
 }
