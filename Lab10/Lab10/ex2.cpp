@@ -30,6 +30,8 @@ INT _tmain(INT argc, LPTSTR argv[]) {
 		handles[i] = CreateThread(NULL, 0, readingThread, argv[i + 1], 0, &threadsId[i]);
 	}
 	WaitForMultipleObjects(nbThreads, handles, TRUE, INFINITE);
+	TCHAR a;
+	_ftscanf(stdin, _T("%c"), &a);
 	return 0;
 }
 
@@ -42,7 +44,8 @@ DWORD WINAPI readingThread(LPVOID arg) {
 
 VOID exploreDirectory(LPTSTR dirName, DWORD threadId) {
 	HANDLE dir;
-	LPTSTR pattern, newDirName;
+	LPTSTR pattern;
+	TCHAR newDirName[500];
 	WIN32_FIND_DATA fileInfo;
 	DWORD ret;
 	pattern = (LPTSTR)malloc(_tcslen(dirName) + sizeof(TCHAR));
@@ -58,7 +61,6 @@ VOID exploreDirectory(LPTSTR dirName, DWORD threadId) {
 			_ftprintf(stdout, _T("Thread %i : file %s\n"), threadId, fileInfo.cFileName);
 		}
 		else if (FileType(&fileInfo) == TYPE_DIR) {
-			newDirName = (LPTSTR)malloc(_tcslen(dirName) + sizeof(TCHAR) + _tcslen(fileInfo.cFileName));
 			_tcscpy(newDirName, dirName);
 			_tcscat(newDirName, fileInfo.cFileName);
 			_tcscat(newDirName, _T("/"));
