@@ -5,6 +5,7 @@
 
 #include <windows.h>
 #include <tchar.h>
+#include <stdio.h>
 
 #define TYPE_FILE 0
 #define TYPE_DIR 1
@@ -13,6 +14,7 @@
 VOID exploreDirectory(LPTSTR name, LPTSTR DestinationDirectory);
 static DWORD FileType(LPWIN32_FIND_DATA fileInfo);
 VOID addSlash(LPTSTR name);
+BOOL CopyAndModifyFile(LPTSTR source, LPTSTR destination, LPTSTR fileName);
 
 INT _tmain(INT argc, LPTSTR argv[]) {
 	if (argc != 3) {
@@ -66,7 +68,7 @@ VOID exploreDirectory(LPTSTR name, LPTSTR DestinationDirectory) {
 			_tcscpy(newDestination, DestinationDirectory);
 			_tcscat(newDestination, fileInfo.cFileName);
 
-			ret = CopyFile(newSource, newDestination, FALSE);
+			ret = CopyAndModifyFile(newSource, newDestination, fileInfo.cFileName);
 			if (ret == FALSE) {
 				_ftprintf(stderr, _T("Error %i when copying file\n"), GetLastError());
 				return;
@@ -101,15 +103,21 @@ VOID addSlash(LPTSTR name) {
 	}
 }
 
-BOOL CopyAndModifyFile(LPTSTR source, LPTSTR destination) {
+BOOL CopyAndModifyFile(LPTSTR source, LPTSTR destination, LPTSTR fileName) {
 	HANDLE srcFile, destFile;
-	
+	DWORD nIn, nOut;
+	LARGE_INTEGER fileSize;
+	BOOLEAN ret;
+	CHAR buffer[100];
+	//FILE* srcfile, *destfile;
+	//srcfile = _tfopen(source, _T("r"));
 	srcFile = CreateFile(source, GENERIC_READ, 0, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
 	if (srcFile == INVALID_HANDLE_VALUE) {
 		_ftprintf(stderr, _T("Error %i when opening file %s\n"), GetLastError(), source);
 		return FALSE;
 	}
 
+	//destfile = _tfopen(destination, _T("w"));
 	destFile = CreateFile(destination, GENERIC_WRITE, 0, NULL, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
 	if (destFile == INVALID_HANDLE_VALUE) {
 		_ftprintf(stderr, _T("Error %i when creating file %s\n"), GetLastError(), destination);
@@ -117,5 +125,32 @@ BOOL CopyAndModifyFile(LPTSTR source, LPTSTR destination) {
 		return FALSE;
 	}
 
+	ret = GetFileSizeEx(srcFile, &fileSize);
+	if (ret == FALSE) {
+		_ftprintf(stderr, _T("Error %i when getting file size\n"), GetLastError());
+		CloseHandle(srcFile);
+		CloseHandle(destFile);
+		return FALSE;
+	}
+	WriteFile(destFile, fileName, _tcslen(fileName), &nOut, NULL);
+	if (nOut != _tcslen(fileName)) {
+		_ftprintf(stderr, _T("Error when writing file : nOut = %i, len = %i\n"), nOut, _tcslen(source));
+	}
+	CHAR a = '\n';
+	WriteFile(destFile, &a, 1, &nOut, NULL);
+	WriteFile(destFile, &fileSize, sizeof(LARGE_INTEGER), &nOut, NULL);
+	if (nOut != sizeof(LARGE_INTEGER)) {
+		_ftprintf(stderr, _T("Error when writing file\n"));
+	}
+	while (ReadFile(srcFile, buffer, 100, &nIn, NULL) && nIn != 0) {
+		WriteFile(destFile, buffer, nIn, &nOut, NULL);
+	}
+	CloseHandle(srcFile);
+	CloseHandle(destFile);
+	
+	
+	/*_ftprintf(destfile, _T("%s\n"), fileName);
+	fclose(destfile);
+	fclose(srcfile);*/
 	return TRUE;
 }
