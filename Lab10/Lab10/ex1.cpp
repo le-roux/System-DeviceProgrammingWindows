@@ -22,54 +22,61 @@ INT _tmain(INT argc, LPTSTR argv[]) {
 
 	//Wait some input to allow the user to have time to read the console
 	TCHAR a;
-	//_ftscanf(stdin, _T("%c"), &a);
+	_ftscanf(stdin, _T("%c"), &a);
 	return 0;
 }
 
 VOID exploreDirectory(LPTSTR name, LPTSTR DestinationDirectory) {
 	LPTSTR pattern = (LPTSTR)malloc(_tcslen(name + sizeof(TCHAR)));
+	TCHAR newSource[500], newDestination[500];
+	BOOL ret;
 	_tcscpy(pattern, name);
 	_tcscat(pattern, _T("*"));
-	LPWIN32_FIND_DATA fileInfo = (LPWIN32_FIND_DATA)malloc(sizeof(WIN32_FIND_DATA));
-	HANDLE dir = FindFirstFile(pattern, fileInfo);
+	WIN32_FIND_DATA fileInfo;
+	HANDLE dir = FindFirstFile(pattern, &fileInfo);
 	if (dir == INVALID_HANDLE_VALUE) {
 		_ftprintf(stderr, _T("Error when reading directory %s\nError : %i"), name, GetLastError());
 		return;
 	}
 
-	BOOL ret = CreateDirectory(DestinationDirectory, NULL);
+	ret = CreateDirectory(DestinationDirectory, NULL);
 	if (ret == FALSE) {
 		_ftprintf(stderr, _T("Impossible to create directory %s\n"), DestinationDirectory);
 		return;
 	}
 
 	do {
-		if (FileType(fileInfo) == TYPE_DIR) {
-			LPTSTR newSourceDirectory = (LPTSTR)malloc(_tcslen(name) + _tcslen(fileInfo->cFileName) + sizeof(TCHAR));
-			_tcscpy(newSourceDirectory, name);
-			_tcscat(newSourceDirectory, fileInfo->cFileName);
-			_tcscat(newSourceDirectory, _T("/"));
+		if (FileType(&fileInfo) == TYPE_DIR) {
+			_tcscpy(newSource, name);
+			_tcscat(newSource, fileInfo.cFileName);
+			_tcscat(newSource, _T("/"));
 
-			LPTSTR newDestinationDirectory = (LPTSTR)malloc(_tcslen(DestinationDirectory) + _tcslen(fileInfo->cFileName) + sizeof(TCHAR));
-			_tcscpy(newDestinationDirectory, DestinationDirectory);
-			_tcscat(newDestinationDirectory, _T("/"));
-			_tcscat(newDestinationDirectory, fileInfo->cFileName);
+			_tcscpy(newDestination, DestinationDirectory);
+			_tcscat(newDestination, fileInfo.cFileName);
 
-			exploreDirectory(newSourceDirectory, newDestinationDirectory);
-		} else if (FileType(fileInfo) == TYPE_FILE) {
-			LPTSTR newFile = (LPTSTR)malloc(_tcslen(DestinationDirectory) + 2 * sizeof(TCHAR) + _tcslen(fileInfo->cFileName));
-			_tcscpy(newFile, DestinationDirectory);
-			_tcscat(newFile, _T("/"));
-			_tcscat(newFile, fileInfo->cFileName);
-			HANDLE DestinationFile = CreateFile(newFile, GENERIC_WRITE, 0, NULL, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
+			exploreDirectory(newSource, newDestination);
+
+		} else if (FileType(&fileInfo) == TYPE_FILE) {
+			_tcscpy(newSource, name);
+			_tcscat(newSource, fileInfo.cFileName);
+			
+			_tcscpy(newDestination, DestinationDirectory);
+			_tcscat(newDestination, fileInfo.cFileName);
+
+			/*HANDLE DestinationFile = CreateFile(newFile, GENERIC_WRITE, 0, NULL, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
 			if (DestinationFile == INVALID_HANDLE_VALUE) {
 				_ftprintf(stderr, _T("Error %i when creating file %s\n"), GetLastError(), newFile);
 				return;
+			}*/
+			_ftprintf(stdout, _T("newSource : %s, newDestination : %s\n"), newSource, newDestination);
+			ret = CopyFile(newSource, newDestination, FALSE);
+			if (ret == FALSE) {
+				_ftprintf(stderr, _T("Error %i when copying file\n"), GetLastError());
+				return;
 			}
-			_ftprintf(stdout, _T("file %s\n"), fileInfo->cFileName);
-			CloseHandle(DestinationFile);
+			_ftprintf(stdout, _T("file %s\n"), fileInfo.cFileName);
 		}
-	} while (FindNextFile(dir, fileInfo));
+	} while (FindNextFile(dir, &fileInfo));
 	ret = FindClose(dir);
 	if (ret == FALSE) {
 		_ftprintf(stderr, _T("Error when closing directory %s\n"), name);
