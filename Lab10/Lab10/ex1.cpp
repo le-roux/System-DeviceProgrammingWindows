@@ -100,3 +100,22 @@ VOID addSlash(LPTSTR name) {
 		_tcscat(name, _T("/"));
 	}
 }
+
+BOOL CopyAndModifyFile(LPTSTR source, LPTSTR destination) {
+	HANDLE srcFile, destFile;
+	
+	srcFile = CreateFile(source, GENERIC_READ, 0, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
+	if (srcFile == INVALID_HANDLE_VALUE) {
+		_ftprintf(stderr, _T("Error %i when opening file %s\n"), GetLastError(), source);
+		return FALSE;
+	}
+
+	destFile = CreateFile(destination, GENERIC_WRITE, 0, NULL, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
+	if (destFile == INVALID_HANDLE_VALUE) {
+		_ftprintf(stderr, _T("Error %i when creating file %s\n"), GetLastError(), destination);
+		CloseHandle(srcFile);
+		return FALSE;
+	}
+
+	return TRUE;
+}
