@@ -12,6 +12,7 @@
 
 VOID exploreDirectory(LPTSTR name, LPTSTR DestinationDirectory);
 static DWORD FileType(LPWIN32_FIND_DATA fileInfo);
+VOID addSlash(LPTSTR name);
 
 INT _tmain(INT argc, LPTSTR argv[]) {
 	if (argc != 3) {
@@ -31,6 +32,7 @@ VOID exploreDirectory(LPTSTR name, LPTSTR DestinationDirectory) {
 	TCHAR newSource[500], newDestination[500];
 	BOOL ret;
 	_tcscpy(pattern, name);
+	addSlash(pattern);
 	_tcscat(pattern, _T("*"));
 	WIN32_FIND_DATA fileInfo;
 	HANDLE dir = FindFirstFile(pattern, &fileInfo);
@@ -49,10 +51,11 @@ VOID exploreDirectory(LPTSTR name, LPTSTR DestinationDirectory) {
 		if (FileType(&fileInfo) == TYPE_DIR) {
 			_tcscpy(newSource, name);
 			_tcscat(newSource, fileInfo.cFileName);
-			_tcscat(newSource, _T("/"));
+			addSlash(newSource);
 
 			_tcscpy(newDestination, DestinationDirectory);
 			_tcscat(newDestination, fileInfo.cFileName);
+			addSlash(newDestination);
 
 			exploreDirectory(newSource, newDestination);
 
@@ -63,12 +66,6 @@ VOID exploreDirectory(LPTSTR name, LPTSTR DestinationDirectory) {
 			_tcscpy(newDestination, DestinationDirectory);
 			_tcscat(newDestination, fileInfo.cFileName);
 
-			/*HANDLE DestinationFile = CreateFile(newFile, GENERIC_WRITE, 0, NULL, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
-			if (DestinationFile == INVALID_HANDLE_VALUE) {
-				_ftprintf(stderr, _T("Error %i when creating file %s\n"), GetLastError(), newFile);
-				return;
-			}*/
-			_ftprintf(stdout, _T("newSource : %s, newDestination : %s\n"), newSource, newDestination);
 			ret = CopyFile(newSource, newDestination, FALSE);
 			if (ret == FALSE) {
 				_ftprintf(stderr, _T("Error %i when copying file\n"), GetLastError());
@@ -94,4 +91,12 @@ static DWORD FileType(LPWIN32_FIND_DATA fileInfo) {
 			fileType = TYPE_DIR;
 	}
 	return fileType;
+}
+
+VOID addSlash(LPTSTR name) {
+	DWORD length;
+	length = _tcslen(name);
+	if (name[length - 1] != _T('/')) {
+		_tcscat(name, _T("/"));
+	}
 }
