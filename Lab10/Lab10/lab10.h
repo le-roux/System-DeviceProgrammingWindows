@@ -9,10 +9,6 @@
 #include <windows.h>
 #include <tchar.h>
 
-#define TYPE_FILE 0
-#define TYPE_DIR 1
-#define TYPE_DOT 2
-
 #define LENGTH 500
 
 volatile LPTSTR* entries;
@@ -52,20 +48,5 @@ VOID exploreDirectory(LPTSTR dirName, DWORD threadId, DWORD threadNb);
  * The function that compare the entries found by the readingThreads. 
  */
 DWORD WINAPI compare(LPVOID arg);
-
-/**
- * A function that returns the type of the directory entry.
- * Possible return values:
- *		-TYPE_FILE
- *		-TYPE_DIR
- *		-TYPE_DOT
- */
-static DWORD FileType(LPWIN32_FIND_DATA fileInfo);
-
-/**
- * This function adds a slash add the end of the string if there is no
- * and returns the (updated) string.
- */
-LPTSTR addFinalSlash(LPTSTR input);
 
 #endif

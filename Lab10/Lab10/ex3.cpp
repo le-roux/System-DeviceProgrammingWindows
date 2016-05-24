@@ -1,4 +1,5 @@
 #include "lab10.h"
+#include "utils.h"
 
 /**
  * The synchronization between the different threads is performed
@@ -209,36 +210,5 @@ DWORD WINAPI compare(LPVOID arg) {
 		
 		//Release the reading threads
 		PulseEvent(eventReaders);
-	}
-}
-
-static DWORD FileType(LPWIN32_FIND_DATA fileInfo) {
-	BOOL isDir;
-	DWORD fileType;
-	isDir = ((fileInfo->dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) != 0);
-	fileType = TYPE_FILE;
-	if (isDir) {
-		if (_tcscmp(fileInfo->cFileName, _T(".")) == 0
-			|| _tcscmp(fileInfo->cFileName, _T("..")) == 0) {
-			fileType = TYPE_DOT;
-		}
-		else
-			fileType = TYPE_DIR;
-	}
-	return fileType;
-}
-
-LPTSTR addFinalSlash(LPTSTR input) {
-	DWORD length;
-	LPTSTR output;
-	length = _tcslen(input);
-	if (input[length - 1] == '/') {
-		return input;
-	}
-	else {
-		output = (LPTSTR)malloc(length * sizeof(TCHAR));
-		_tcscpy(output, input);
-		_tcscat(output, _T("/"));
-		return output;
 	}
 }
