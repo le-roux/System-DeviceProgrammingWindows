@@ -142,11 +142,10 @@ DWORD WINAPI readingThread(LPVOID arg) {
 
 VOID exploreDirectory(LPTSTR dirName, DWORD threadId, DWORD threadNb) {
 	HANDLE dir;
-	LPTSTR pattern, newDirName;
 	WIN32_FIND_DATA fileInfo;
 	DWORD ret;
+	TCHAR pattern[LENGTH], newDirName[LENGTH];
 
-	pattern = (LPTSTR)malloc(_tcslen(dirName) + sizeof(TCHAR));
 	_tcscpy(pattern, dirName);
 	_tcscat(pattern, _T("*"));
 
@@ -169,21 +168,17 @@ VOID exploreDirectory(LPTSTR dirName, DWORD threadId, DWORD threadNb) {
 		WaitForSingleObject(eventReaders, INFINITE);
 
 		if (FileType(&fileInfo) == TYPE_DIR) {
-			newDirName = (LPTSTR)malloc(_tcslen(dirName) + sizeof(TCHAR) + _tcslen(fileInfo.cFileName));
 			_tcscpy(newDirName, dirName);
 			_tcscat(newDirName, fileInfo.cFileName);
 			_tcscat(newDirName, _T("/"));
 			
 			exploreDirectory(newDirName, threadId, threadNb);
-			
-			free(newDirName);
 		}
 	} while (FindNextFile(dir, &fileInfo));
 	ret = FindClose(dir);
 	if (ret == FALSE) {
 		_ftprintf(stderr, _T("Error when closing directory %s\n"), dirName);
 	}
-	//free(pattern);
 }
 
 DWORD WINAPI compare(LPVOID arg) {

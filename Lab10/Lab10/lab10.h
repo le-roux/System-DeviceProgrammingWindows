@@ -13,6 +13,8 @@
 #define TYPE_DIR 1
 #define TYPE_DOT 2
 
+#define LENGTH 500
+
 volatile LPTSTR* entries;
 
 /**
