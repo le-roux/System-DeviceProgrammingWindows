@@ -4,13 +4,16 @@ TCHAR a;
 DWORD ret;
 LPTSTR accountFileName;
 
-#define VERSION_C
+#define VERSION_D
 
 #ifdef VERSION_B
 	CRITICAL_SECTION cs;
 #endif //VERSION_B
 #ifdef VERSION_C
 	HANDLE mutex;
+#endif
+#ifdef VERSION_D
+	HANDLE semaphore;
 #endif
 
 INT _tmain(INT argc, LPTSTR argv[]) {
@@ -32,9 +35,12 @@ INT _tmain(INT argc, LPTSTR argv[]) {
 	#ifdef VERSION_B
 		InitializeCriticalSection(&cs);
 	#endif //VERSION_B
-#ifdef VERSION_C
+	#ifdef VERSION_C
 		mutex = CreateMutex(NULL, FALSE, NULL);
-#endif
+	#endif //VERSION_C
+	#ifdef VERSION_D
+		semaphore = CreateSemaphore(NULL, 1, 1, NULL);
+	#endif //VERSION_D
 
 	for (DWORD i = 0; i < threadsNb; i++) {
 		threadsHandles[i] = CreateThread(NULL, 0, readOperations, argv[i + 2], 0, &threadsIds[i]);
@@ -52,6 +58,9 @@ INT _tmain(INT argc, LPTSTR argv[]) {
 	#ifdef VERSION_C
 		CloseHandle(mutex);
 	#endif //VERSION_C
+	#ifdef VERSION_D
+		CloseHandle(semaphore);
+	#endif //VERSION_D
 	readAccountsFile(argv[1]);
 	_ftscanf(stdin, _T("%c"), &a);
 	return 0;
@@ -97,6 +106,9 @@ DWORD WINAPI readOperations(LPVOID arg) {
 		#ifdef VERSION_C
 				WaitForSingleObject(mutex, INFINITE);
 		#endif //VERSION_C
+		#ifdef VERSION_D
+				WaitForSingleObject(semaphore, INFINITE);
+		#endif //VERSION_D
 		__try {
 			ret = ReadFile(accountFile, &account, sizeof(Account), &nRead, &ov);
 			if (nRead != sizeof(Account) || !ret) {
@@ -120,6 +132,9 @@ DWORD WINAPI readOperations(LPVOID arg) {
 		#ifdef VERSION_C
 			ReleaseMutex(mutex);
 		#endif //VERSION_C
+		#ifdef VERSION_D
+			ReleaseSemaphore(semaphore, 1, NULL);
+		#endif //VERSION_D
 		}
 	}
 	CloseHandle(accountFile);
