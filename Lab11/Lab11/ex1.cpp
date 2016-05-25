@@ -2,7 +2,7 @@
 
 TCHAR a;
 DWORD ret;
-HANDLE accountFile;
+LPTSTR accountFileName;
 
 INT _tmain(INT argc, LPTSTR argv[]) {
 	HANDLE *threadsHandles;
@@ -13,18 +13,14 @@ INT _tmain(INT argc, LPTSTR argv[]) {
 		return 1;
 	}
 
+	accountFileName = argv[1];
 	readAccountsFile(argv[1]);
 
 	threadsNb = argc - 2;
 	threadsHandles = (HANDLE*)malloc(threadsNb * sizeof(HANDLE));
 	threadsIds = (DWORD*)malloc(threadsNb * sizeof(DWORD));
 
-	accountFile = CreateFile(argv[1], GENERIC_READ | GENERIC_WRITE, 0, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
-	if (accountFile == INVALID_HANDLE_VALUE) {
-		_ftprintf(stderr, _T("Error %i when opening the accounts file\n"), GetLastError());
-		_ftscanf(stdin, _T("%s"), &a);
-		return 1;
-	}
+	
 
 	for (DWORD i = 0; i < threadsNb; i++) {
 		threadsHandles[i] = CreateThread(NULL, 0, readOperations, argv[i + 2], 0, &threadsIds[i]);
@@ -36,7 +32,6 @@ INT _tmain(INT argc, LPTSTR argv[]) {
 	}
 
 	WaitForMultipleObjects(threadsNb, threadsHandles, TRUE, INFINITE);
-	CloseHandle(accountFile);
 	readAccountsFile(argv[1]);
 	_ftscanf(stdin, _T("%c"), &a);
 	return 0;
@@ -44,9 +39,16 @@ INT _tmain(INT argc, LPTSTR argv[]) {
 
 DWORD WINAPI readOperations(LPVOID arg) {
 	LPTSTR fileName;
-	HANDLE operationsFile;
+	HANDLE operationsFile, accountFile;
 	Operation operation;
 	DWORD nRead, nWrite;
+
+	accountFile = CreateFile(accountFileName, GENERIC_READ | GENERIC_WRITE, FILE_SHARE_READ | FILE_SHARE_WRITE, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
+	if (accountFile == INVALID_HANDLE_VALUE) {
+		_ftprintf(stderr, _T("Error %i when opening the accounts file\n"), GetLastError());
+		_ftscanf(stdin, _T("%s"), &a);
+		return 1;
+	}
 
 	fileName = (LPTSTR)arg;
 	operationsFile = CreateFile(fileName, GENERIC_READ, FILE_SHARE_READ, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
@@ -64,20 +66,15 @@ DWORD WINAPI readOperations(LPVOID arg) {
 		ov = { 0, 0, 0, 0, NULL };
 		ov.Offset = (operation.lineNumber - 1) * sizeof(Account);
 		nbOfBytesToLock.QuadPart = sizeof(Operation);
-		_ftprintf(stdout, _T("Lock %i\n"), operation.lineNumber);
 		LockFileEx(accountFile, LOCKFILE_EXCLUSIVE_LOCK, 0, nbOfBytesToLock.LowPart, nbOfBytesToLock.HighPart, &ov);
-		_ftprintf(stdout, _T("Locked %i\n"), operation.lineNumber);
 		__try {
-			_ftprintf(stdout, _T("Read\n"));
 			ret = ReadFile(accountFile, &account, sizeof(Account), &nRead, &ov);
-			_ftprintf(stdout, _T("Read\n"));
 			if (nRead != sizeof(Account) || !ret) {
 				_ftprintf(stderr, _T("Error %i reading the account file\n"), GetLastError());
 				continue;
 			}
 			account.balance += operation.operation;
 			WriteFile(accountFile, &account, sizeof(Account), &nWrite, &ov);
-			_ftprintf(stdout, _T("Write\n"));
 			if (nWrite != sizeof(Account)) {
 				_ftprintf(stderr, _T("Error %i writing the account file\n"), GetLastError());
 				continue;
@@ -85,10 +82,9 @@ DWORD WINAPI readOperations(LPVOID arg) {
 		}
 		__finally {
 			UnlockFileEx(accountFile, 0, nbOfBytesToLock.LowPart, nbOfBytesToLock.HighPart, &ov);
-			_ftprintf(stdout, _T("unlock %i\n"), operation.lineNumber);
 		}
 	}
-
+	CloseHandle(accountFile);
 	CloseHandle(operationsFile);
 	ExitThread(0);
 }
