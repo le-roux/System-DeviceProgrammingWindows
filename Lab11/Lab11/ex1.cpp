@@ -4,6 +4,12 @@ TCHAR a;
 DWORD ret;
 LPTSTR accountFileName;
 
+#define VERSION_B
+
+#ifdef VERSION_B
+	CRITICAL_SECTION cs;
+#endif //VERSION_B
+
 INT _tmain(INT argc, LPTSTR argv[]) {
 	HANDLE *threadsHandles;
 	DWORD threadsNb, *threadsIds;
@@ -20,7 +26,9 @@ INT _tmain(INT argc, LPTSTR argv[]) {
 	threadsHandles = (HANDLE*)malloc(threadsNb * sizeof(HANDLE));
 	threadsIds = (DWORD*)malloc(threadsNb * sizeof(DWORD));
 
-	
+	#ifdef VERSION_B
+		InitializeCriticalSection(&cs);
+	#endif
 
 	for (DWORD i = 0; i < threadsNb; i++) {
 		threadsHandles[i] = CreateThread(NULL, 0, readOperations, argv[i + 2], 0, &threadsIds[i]);
@@ -32,6 +40,9 @@ INT _tmain(INT argc, LPTSTR argv[]) {
 	}
 
 	WaitForMultipleObjects(threadsNb, threadsHandles, TRUE, INFINITE);
+	#ifdef VERSION_B
+		DeleteCriticalSection(&cs);
+	#endif
 	readAccountsFile(argv[1]);
 	_ftscanf(stdin, _T("%c"), &a);
 	return 0;
@@ -59,14 +70,21 @@ DWORD WINAPI readOperations(LPVOID arg) {
 	}
 
 	while (ReadFile(operationsFile, &operation, sizeof(Operation), &nRead, NULL) && nRead > 0) {
+		#ifdef VERSION_A
 		LARGE_INTEGER nbOfBytesToLock;
+		#endif //VERSION_A
 		OVERLAPPED ov;
 		Account account;
 		BOOL ret;
 		ov = { 0, 0, 0, 0, NULL };
 		ov.Offset = (operation.lineNumber - 1) * sizeof(Account);
-		nbOfBytesToLock.QuadPart = sizeof(Operation);
-		LockFileEx(accountFile, LOCKFILE_EXCLUSIVE_LOCK, 0, nbOfBytesToLock.LowPart, nbOfBytesToLock.HighPart, &ov);
+		#ifdef VERSION_A
+			nbOfBytesToLock.QuadPart = sizeof(Operation);
+			LockFileEx(accountFile, LOCKFILE_EXCLUSIVE_LOCK, 0, nbOfBytesToLock.LowPart, nbOfBytesToLock.HighPart, &ov);
+		#endif //VERSION_A
+		#ifdef VERSION_B
+				EnterCriticalSection(&cs);
+		#endif //VERSION_B
 		__try {
 			ret = ReadFile(accountFile, &account, sizeof(Account), &nRead, &ov);
 			if (nRead != sizeof(Account) || !ret) {
@@ -81,7 +99,12 @@ DWORD WINAPI readOperations(LPVOID arg) {
 			}
 		}
 		__finally {
+		#ifdef VERSION_A
 			UnlockFileEx(accountFile, 0, nbOfBytesToLock.LowPart, nbOfBytesToLock.HighPart, &ov);
+		#endif //VERSION_A
+		#ifdef VERSION_B
+			LeaveCriticalSection(&cs);
+		#endif //VERSION_B
 		}
 	}
 	CloseHandle(accountFile);
