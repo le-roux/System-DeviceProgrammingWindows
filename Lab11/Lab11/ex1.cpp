@@ -4,11 +4,14 @@ TCHAR a;
 DWORD ret;
 LPTSTR accountFileName;
 
-#define VERSION_B
+#define VERSION_C
 
 #ifdef VERSION_B
 	CRITICAL_SECTION cs;
 #endif //VERSION_B
+#ifdef VERSION_C
+	HANDLE mutex;
+#endif
 
 INT _tmain(INT argc, LPTSTR argv[]) {
 	HANDLE *threadsHandles;
@@ -28,7 +31,10 @@ INT _tmain(INT argc, LPTSTR argv[]) {
 
 	#ifdef VERSION_B
 		InitializeCriticalSection(&cs);
-	#endif
+	#endif //VERSION_B
+#ifdef VERSION_C
+		mutex = CreateMutex(NULL, FALSE, NULL);
+#endif
 
 	for (DWORD i = 0; i < threadsNb; i++) {
 		threadsHandles[i] = CreateThread(NULL, 0, readOperations, argv[i + 2], 0, &threadsIds[i]);
@@ -42,7 +48,10 @@ INT _tmain(INT argc, LPTSTR argv[]) {
 	WaitForMultipleObjects(threadsNb, threadsHandles, TRUE, INFINITE);
 	#ifdef VERSION_B
 		DeleteCriticalSection(&cs);
-	#endif
+	#endif //VERSION_B
+	#ifdef VERSION_C
+		CloseHandle(mutex);
+	#endif //VERSION_C
 	readAccountsFile(argv[1]);
 	_ftscanf(stdin, _T("%c"), &a);
 	return 0;
@@ -85,6 +94,9 @@ DWORD WINAPI readOperations(LPVOID arg) {
 		#ifdef VERSION_B
 				EnterCriticalSection(&cs);
 		#endif //VERSION_B
+		#ifdef VERSION_C
+				WaitForSingleObject(mutex, INFINITE);
+		#endif //VERSION_C
 		__try {
 			ret = ReadFile(accountFile, &account, sizeof(Account), &nRead, &ov);
 			if (nRead != sizeof(Account) || !ret) {
@@ -105,6 +117,9 @@ DWORD WINAPI readOperations(LPVOID arg) {
 		#ifdef VERSION_B
 			LeaveCriticalSection(&cs);
 		#endif //VERSION_B
+		#ifdef VERSION_C
+			ReleaseMutex(mutex);
+		#endif //VERSION_C
 		}
 	}
 	CloseHandle(accountFile);
