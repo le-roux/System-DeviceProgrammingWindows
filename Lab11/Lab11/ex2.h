@@ -9,9 +9,6 @@
 #include <windows.h>
 #include <tchar.h>
 
-DWORD WINAPI producer(LPVOID arg);
-DWORD WINAPI consumer(LPVOID arg);
-
 typedef struct BUFFER {
 	LPINT buffer;
 	DWORD indexRead;
@@ -19,5 +16,11 @@ typedef struct BUFFER {
 	HANDLE semaphoreFull;
 	HANDLE semaphoreEmpty;
 } BUFFER;
+
+DWORD WINAPI producer(LPVOID arg);
+DWORD WINAPI consumer(LPVOID arg);
+VOID writeBuffer(INT value, DWORD threadId);
+INT readBuffer(DWORD threadId);
+VOID initBuffer(BUFFER* buffer);
 
 #endif //EX2_H

@@ -25,7 +25,12 @@ typedef struct Operation {
 	INT operation;
 } Operation;
 
-DWORD WINAPI readOperations(LPVOID arg);
+/*Read a file containing operations and apply them on the
+ corresponding account*/
+DWORD WINAPI readOperations(LPVOID FileName);
+
+/*Read a file containing accounts records and
+ print its content on the standard output*/
 VOID readAccountsFile(LPTSTR fileName);
 
 #endif //EX1_H
