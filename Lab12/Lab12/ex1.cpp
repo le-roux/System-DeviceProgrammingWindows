@@ -7,8 +7,15 @@
 #include <tchar.h>
 
 #define THREADS_NB 4
+#define VERSION_B
 
-HANDLE inputSem[THREADS_NB], outputSem;
+#ifdef VERSION_A
+	HANDLE inputSem[THREADS_NB], outputSem;
+#endif
+
+#ifdef VERSION_B
+	HANDLE inputEvent, outputEvent;
+#endif
 DWORD inputValue;
 TCHAR a;
 
@@ -24,10 +31,15 @@ INT _tmain(INT argc, LPTSTR argv[]) {
 		return 1;
 	}
 
-	for (INT i = 0; i < THREADS_NB; i++)
-		inputSem[i] = CreateSemaphore(NULL, 0, 1, NULL);
-	outputSem = CreateSemaphore(NULL, 0, THREADS_NB, NULL);
-
+	#ifdef VERSION_A
+		for (INT i = 0; i < THREADS_NB; i++)
+			inputSem[i] = CreateSemaphore(NULL, 0, 1, NULL);
+		outputSem = CreateSemaphore(NULL, 0, THREADS_NB, NULL);
+	#endif
+	#ifdef VERSION_B
+		inputEvent = CreateEvent(NULL, FALSE, FALSE, NULL);
+		outputEvent = CreateEvent(NULL, TRUE, FALSE, NULL);
+	#endif
 	LPDWORD threadPos;
 	for (INT i = 0; i < THREADS_NB; i++) {
 		threadPos = (LPDWORD)malloc(sizeof(DWORD));
@@ -46,20 +58,34 @@ INT _tmain(INT argc, LPTSTR argv[]) {
 		_ftscanf(stdin, _T("%c"), &a);
 		return 1;
 	}
-
 	while (ReadFile(inputFile, &inputValue, sizeof(DWORD), &nRead, NULL) && nRead > 0) {
-		for (INT i = 0; i < THREADS_NB; i++)
-			ReleaseSemaphore(inputSem[i], 1, NULL);
-		for (INT i = 0; i < THREADS_NB; i++) {
-			WaitForSingleObject(outputSem, INFINITE);
-		}
+		#ifdef VERSION_A
+			for (INT i = 0; i < THREADS_NB; i++)
+				ReleaseSemaphore(inputSem[i], 1, NULL);
+			for (INT i = 0; i < THREADS_NB; i++) {
+				WaitForSingleObject(outputSem, INFINITE);
+			}
+		#endif
+		#ifdef VERSION_B
+			SetEvent(inputEvent);
+			for (INT i = 0; i < THREADS_NB; i++) {
+				WaitForSingleObject(outputEvent, INFINITE);
+			}
+		#endif
 	}
 
 	for (INT i = 0; i < THREADS_NB; i++) {
 		TerminateThread(threadsHandles[i], 0);
 	}
-	CloseHandle(inputSem);
-	CloseHandle(outputSem);
+	#ifdef VERSION_A
+		for (INT i = 0; i < THREADS_NB; i++)
+			CloseHandle(inputSem[i]);
+		CloseHandle(outputSem);
+	#endif
+	#ifdef VERSION_B
+		CloseHandle(inputEvent);
+		CloseHandle(outputEvent);
+	#endif
 	CloseHandle(inputFile);
 	_ftprintf(stdout, _T("================================================\n"));
 	_ftscanf(stdin, _T("%c"), &a);
@@ -71,7 +97,12 @@ DWORD WINAPI threadFunc(LPVOID arg) {
 	DWORDLONG sum = 0, product = 1, factorial = 1;
 	threadPos = *(LPDWORD)arg;
 	while (1) {
-		WaitForSingleObject(inputSem[threadPos], INFINITE);
+		#ifdef VERSION_A
+			WaitForSingleObject(inputSem[threadPos], INFINITE);
+		#endif
+	#ifdef VERSION_B
+			WaitForSingleObject(inputEvent, INFINITE);
+	#endif
 		switch (threadPos) {
 			case 0: {
 				sum += inputValue;
@@ -91,11 +122,18 @@ DWORD WINAPI threadFunc(LPVOID arg) {
 				break;
 			}
 			default: {
+				_ftprintf(stdout, _T("Thread 4 : "));
 				for (INT i = 0; i < inputValue; i++)
 					_ftprintf(stdout, _T("#"));
+				_ftprintf(stdout, _T("\n"));
 			}
 		}
-		ReleaseSemaphore(outputSem, 1, NULL);
+		#ifdef VERSION_A
+			ReleaseSemaphore(outputSem, 1, NULL);
+		#endif
+		#ifdef VERSION_B
+			SetEvent(outputEvent);
+		#endif
 	}
 	ExitThread(0);
 }
