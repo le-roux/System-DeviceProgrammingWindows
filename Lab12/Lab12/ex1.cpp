@@ -14,7 +14,7 @@
 #endif
 
 #ifdef VERSION_B
-	HANDLE inputEvent, outputEvent;
+	HANDLE inputEvent, outputEvent[THREADS_NB];
 #endif
 DWORD inputValue;
 TCHAR a;
@@ -37,8 +37,9 @@ INT _tmain(INT argc, LPTSTR argv[]) {
 		outputSem = CreateSemaphore(NULL, 0, THREADS_NB, NULL);
 	#endif
 	#ifdef VERSION_B
-		inputEvent = CreateEvent(NULL, FALSE, FALSE, NULL);
-		outputEvent = CreateEvent(NULL, TRUE, FALSE, NULL);
+		inputEvent = CreateEvent(NULL, TRUE, FALSE, NULL);
+		for (INT i = 0; i < THREADS_NB; i++)
+			outputEvent[i] = CreateEvent(NULL, FALSE, FALSE, NULL);
 	#endif
 	LPDWORD threadPos;
 	for (INT i = 0; i < THREADS_NB; i++) {
@@ -67,10 +68,8 @@ INT _tmain(INT argc, LPTSTR argv[]) {
 			}
 		#endif
 		#ifdef VERSION_B
-			SetEvent(inputEvent);
-			for (INT i = 0; i < THREADS_NB; i++) {
-				WaitForSingleObject(outputEvent, INFINITE);
-			}
+			PulseEvent(inputEvent);
+			WaitForMultipleObjects(THREADS_NB, outputEvent, TRUE, INFINITE);
 		#endif
 	}
 
@@ -132,7 +131,7 @@ DWORD WINAPI threadFunc(LPVOID arg) {
 			ReleaseSemaphore(outputSem, 1, NULL);
 		#endif
 		#ifdef VERSION_B
-			SetEvent(outputEvent);
+			SetEvent(outputEvent[threadPos]);
 		#endif
 	}
 	ExitThread(0);
