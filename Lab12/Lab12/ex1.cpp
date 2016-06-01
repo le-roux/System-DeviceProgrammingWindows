@@ -1,3 +1,10 @@
+/**
+ * Implements a simple producer-consumer scheme with the following characteristics :
+ *		- single producer : the main thread
+ *		- multiple consumers : the secondary threads
+ *		- synchronization performed using either semaphores or events
+ */
+
 #define UNICODE
 #define _UNICODE
 
@@ -6,7 +13,14 @@
 #include <windows.h>
 #include <tchar.h>
 
+//Number of threads to run
 #define THREADS_NB 4
+
+/* Define either VERSION_A or VERSION_B according to the type
+ * of synchronisation object you want to use
+ *	VERSION_A : semaphores
+ *	VERSION_B : events
+ */
 #define VERSION_B
 
 #ifdef VERSION_A
@@ -16,13 +30,18 @@
 #ifdef VERSION_B
 	HANDLE inputEvent, outputEvent[THREADS_NB];
 #endif
-DWORD inputValue;
+
+//Value read from the file
+volatile DWORD inputValue;
+
+/*Trash value used for leaving the console opened at
+  the end*/
 TCHAR a;
 
 DWORD WINAPI threadFunc(LPVOID arg);
 
 INT _tmain(INT argc, LPTSTR argv[]) {
-	HANDLE threadsHandles[THREADS_NB], inputFile;
+	HANDLE threadsHandles[THREADS_NB], inputFile = NULL;
 	DWORD threadsIds[THREADS_NB], nRead;
 
 	if (argc != 2) {
@@ -31,6 +50,7 @@ INT _tmain(INT argc, LPTSTR argv[]) {
 		return 1;
 	}
 
+	//Initialize synchronization objects
 	#ifdef VERSION_A
 		for (INT i = 0; i < THREADS_NB; i++)
 			inputSem[i] = CreateSemaphore(NULL, 0, 1, NULL);
@@ -41,6 +61,8 @@ INT _tmain(INT argc, LPTSTR argv[]) {
 		for (INT i = 0; i < THREADS_NB; i++)
 			outputEvent[i] = CreateEvent(NULL, FALSE, FALSE, NULL);
 	#endif
+
+	//Create the threads
 	LPDWORD threadPos;
 	for (INT i = 0; i < THREADS_NB; i++) {
 		threadPos = (LPDWORD)malloc(sizeof(DWORD));
@@ -59,8 +81,15 @@ INT _tmain(INT argc, LPTSTR argv[]) {
 		_ftscanf(stdin, _T("%c"), &a);
 		return 1;
 	}
-	Sleep(100);
-	while (ReadFile(inputFile, &inputValue, sizeof(DWORD), &nRead, NULL) && nRead > 0) {
+
+	/* Used to be sure that all the secondary threads have been activated and wait
+	   on the event before the main thread triggers it */
+	#ifdef VERSION_B
+		Sleep(100);
+	#endif
+
+	//Read the file
+	while (ReadFile(inputFile, (LPVOID)&inputValue, sizeof(DWORD), &nRead, NULL) && nRead > 0) {
 		#ifdef VERSION_A
 			for (INT i = 0; i < THREADS_NB; i++)
 				ReleaseSemaphore(inputSem[i], 1, NULL);
@@ -77,6 +106,8 @@ INT _tmain(INT argc, LPTSTR argv[]) {
 	for (INT i = 0; i < THREADS_NB; i++) {
 		TerminateThread(threadsHandles[i], 0);
 	}
+
+	//Clean the synchronization objects used
 	#ifdef VERSION_A
 		for (INT i = 0; i < THREADS_NB; i++)
 			CloseHandle(inputSem[i]);
@@ -86,7 +117,10 @@ INT _tmain(INT argc, LPTSTR argv[]) {
 		CloseHandle(inputEvent);
 		CloseHandle(outputEvent);
 	#endif
+
 	CloseHandle(inputFile);
+
+	//Display a special line to indicate the end of the program
 	_ftprintf(stdout, _T("================================================\n"));
 	_ftscanf(stdin, _T("%c"), &a);
 	return 0;
@@ -128,6 +162,9 @@ DWORD WINAPI threadFunc(LPVOID arg) {
 				_ftprintf(stdout, _T("\n"));
 			}
 		}
+
+		/* Release the main thread (each secondary thread must perform this step
+		   in order that the main continues its execution */
 		#ifdef VERSION_A
 			ReleaseSemaphore(outputSem, 1, NULL);
 		#endif

@@ -40,13 +40,13 @@ INT _tmain(INT argc, LPTSTR argv[]) {
 }
 
 DWORD WINAPI threadFunc1(LPVOID arg) {
-	LPTSTR fileName;
-	HANDLE inputFile;
+	LPTSTR fileName = NULL;
+	HANDLE inputFile = NULL;
 	DWORD n1, n2, nRead;
 	fileName = (LPTSTR)arg;
 
-	inputFile = CreateFile(fileName, GENERIC_READ, FILE_SHARE_READ, NULL, OPEN_EXISTING, 0, NULL);
 	__try {
+		inputFile = CreateFile(fileName, GENERIC_READ, FILE_SHARE_READ, NULL, OPEN_EXISTING, 0, NULL);
 		while (ReadFile(inputFile, &n1, sizeof(DWORD), &nRead, NULL) && nRead > 0) {
 			ReadFile(inputFile, &n2, sizeof(DWORD), &nRead, NULL);
 			_ftprintf(stdout, _T("n1 = %i, n2 = %i, n1/n2 = %i\n"), n1, n2, n1 / n2);
@@ -64,9 +64,8 @@ DWORD WINAPI threadFunc2(LPVOID arg) {
 	DWORD size, value, nRead, index = 0;
 	LPDWORD dynamicArray = NULL;
 	fileName = (LPTSTR)arg;
-	
-	inputFile = CreateFile(fileName, GENERIC_READ, FILE_SHARE_READ, NULL, OPEN_EXISTING, 0, NULL);
 	__try {
+		inputFile = CreateFile(fileName, GENERIC_READ, FILE_SHARE_READ, NULL, OPEN_EXISTING, 0, NULL);
 		ReadFile(inputFile, &size, sizeof(DWORD), &nRead, NULL);
 		currentHeap = GetProcessHeap();
 		dynamicArray = (LPDWORD)HeapAlloc(currentHeap, HEAP_GENERATE_EXCEPTIONS, size * sizeof(DWORD));
@@ -74,6 +73,7 @@ DWORD WINAPI threadFunc2(LPVOID arg) {
 			dynamicArray[index] = value;
 			index++;
 		}
+
 		//Order the array
 		for (DWORD i = 0; i < size; i++) {
 			DWORD tmp = i;
@@ -84,6 +84,7 @@ DWORD WINAPI threadFunc2(LPVOID arg) {
 				tmp--;
 			}
 		}
+
 		//Display the ordered array
 		for (DWORD i = 0; i < size; i++) {
 			_ftprintf(stdout, _T("%i "), dynamicArray[i]);
