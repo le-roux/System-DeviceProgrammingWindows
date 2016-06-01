@@ -11,6 +11,9 @@
 HANDLE threadsHandles[THREADS_NB];
 DWORD threadsIds[THREADS_NB];
 
+LPDWORD dynamicArray = NULL;
+volatile BOOLEAN stop = FALSE;
+
 DWORD WINAPI threadFunc1(LPVOID arg);
 DWORD WINAPI threadFunc2(LPVOID arg);
 
@@ -31,11 +34,10 @@ INT _tmain(INT argc, LPTSTR argv[]) {
 		if (threadsHandles[1] == NULL)
 			RaiseException(0xE0000002, 0, 0, NULL);
 	}
-	__except (EXCEPTION_EXECUTE_HANDLER) {
+	__finally {
 		CloseHandle(threadsHandles[0]);
 		CloseHandle(threadsHandles[1]);
 	}
-
 	_ftscanf(stdin, _T("%c"), &a);
 }
 
@@ -47,12 +49,15 @@ DWORD WINAPI threadFunc1(LPVOID arg) {
 
 	__try {
 		inputFile = CreateFile(fileName, GENERIC_READ, FILE_SHARE_READ, NULL, OPEN_EXISTING, 0, NULL);
-		while (ReadFile(inputFile, &n1, sizeof(DWORD), &nRead, NULL) && nRead > 0) {
+		while (!stop && ReadFile(inputFile, &n1, sizeof(DWORD), &nRead, NULL) && nRead > 0) {
 			ReadFile(inputFile, &n2, sizeof(DWORD), &nRead, NULL);
+			if (nRead != sizeof(DWORD))
+				RaiseException(0xE0000003, 0, 0, NULL);
 			_ftprintf(stdout, _T("n1 = %i, n2 = %i, n1/n2 = %i\n"), n1, n2, n1 / n2);
 		}
 	}
 	__except (EXCEPTION_EXECUTE_HANDLER) {
+		stop = TRUE;
 		CloseHandle(inputFile);
 	}
 	ExitThread(0);
@@ -62,35 +67,43 @@ DWORD WINAPI threadFunc2(LPVOID arg) {
 	LPTSTR fileName;
 	HANDLE inputFile = NULL, currentHeap = NULL;
 	DWORD size, value, nRead, index = 0;
-	LPDWORD dynamicArray = NULL;
 	fileName = (LPTSTR)arg;
 	__try {
-		inputFile = CreateFile(fileName, GENERIC_READ, FILE_SHARE_READ, NULL, OPEN_EXISTING, 0, NULL);
-		ReadFile(inputFile, &size, sizeof(DWORD), &nRead, NULL);
-		currentHeap = GetProcessHeap();
-		dynamicArray = (LPDWORD)HeapAlloc(currentHeap, HEAP_GENERATE_EXCEPTIONS, size * sizeof(DWORD));
-		while (ReadFile(inputFile, &value, sizeof(DWORD), &nRead, NULL) && nRead > 0) {
-			dynamicArray[index] = value;
-			index++;
-		}
+		__try {
+			inputFile = CreateFile(fileName, GENERIC_READ, FILE_SHARE_READ, NULL, OPEN_EXISTING, 0, NULL);
+			ReadFile(inputFile, &size, sizeof(DWORD), &nRead, NULL);
+			currentHeap = GetProcessHeap();
+			dynamicArray = (LPDWORD)HeapAlloc(currentHeap, HEAP_GENERATE_EXCEPTIONS, size * sizeof(DWORD));
+			while (ReadFile(inputFile, &value, sizeof(DWORD), &nRead, NULL) && nRead > 0) {
+				if (stop)
+					__leave;
+				dynamicArray[index] = value;
+				index++;
+			}
 
-		//Order the array
-		for (DWORD i = 0; i < size; i++) {
-			DWORD tmp = i;
-			while (tmp > 0 && dynamicArray[tmp - 1] > dynamicArray[tmp]) {
-				DWORD swap = dynamicArray[tmp - 1];
-				dynamicArray[tmp - 1] = dynamicArray[tmp];
-				dynamicArray[tmp] = swap;
-				tmp--;
+			//Order the array
+			for (DWORD i = 0; i < size; i++) {
+				DWORD tmp = i;
+				while (tmp > 0 && dynamicArray[tmp - 1] > dynamicArray[tmp]) {
+					DWORD swap;
+					swap = dynamicArray[tmp - 1];
+					dynamicArray[tmp - 1] = dynamicArray[tmp];
+					dynamicArray[tmp] = swap;
+					tmp--;
+				}
+			}
+
+			//Display the ordered array
+			for (DWORD i = 0; i < size; i++) {
+				_ftprintf(stdout, _T("%i "), dynamicArray[i]);
 			}
 		}
-
-		//Display the ordered array
-		for (DWORD i = 0; i < size; i++) {
-			_ftprintf(stdout, _T("%i "), dynamicArray[i]);
+		__except (EXCEPTION_EXECUTE_HANDLER) {
+			__leave;
 		}
 	}
 	__finally {
+		stop = TRUE;
 		CloseHandle(inputFile);
 		HeapFree(currentHeap, 0, dynamicArray);
 	}
