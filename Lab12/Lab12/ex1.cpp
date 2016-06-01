@@ -59,6 +59,7 @@ INT _tmain(INT argc, LPTSTR argv[]) {
 		_ftscanf(stdin, _T("%c"), &a);
 		return 1;
 	}
+	Sleep(100);
 	while (ReadFile(inputFile, &inputValue, sizeof(DWORD), &nRead, NULL) && nRead > 0) {
 		#ifdef VERSION_A
 			for (INT i = 0; i < THREADS_NB; i++)
