@@ -1,3 +1,7 @@
+/**
+ * This program is done to practice the Structured Error Handling mechanism.
+ */
+
 #define UNICODE
 #define _UNICODE
 
@@ -12,6 +16,8 @@ HANDLE threadsHandles[THREADS_NB];
 DWORD threadsIds[THREADS_NB];
 
 LPDWORD dynamicArray = NULL;
+
+//Used to signal the other thread that an error occured and that it has to stop
 volatile BOOLEAN stop = FALSE;
 
 DWORD WINAPI threadFunc1(LPVOID arg);
@@ -33,6 +39,8 @@ INT _tmain(INT argc, LPTSTR argv[]) {
 		threadsHandles[1] = CreateThread(NULL, 0, threadFunc2, argv[1], 0, &threadsIds[1]);
 		if (threadsHandles[1] == NULL)
 			RaiseException(0xE0000002, 0, 0, NULL);
+
+		WaitForMultipleObjects(THREADS_NB, threadsHandles, TRUE, INFINITE);
 	}
 	__finally {
 		CloseHandle(threadsHandles[0]);
@@ -49,6 +57,9 @@ DWORD WINAPI threadFunc1(LPVOID arg) {
 
 	__try {
 		inputFile = CreateFile(fileName, GENERIC_READ, FILE_SHARE_READ, NULL, OPEN_EXISTING, 0, NULL);
+		if (inputFile == INVALID_HANDLE_VALUE)
+			RaiseException(0xE0000005, 0, 0, NULL);
+
 		while (!stop && ReadFile(inputFile, &n1, sizeof(DWORD), &nRead, NULL) && nRead > 0) {
 			ReadFile(inputFile, &n2, sizeof(DWORD), &nRead, NULL);
 			if (nRead != sizeof(DWORD))
@@ -71,9 +82,16 @@ DWORD WINAPI threadFunc2(LPVOID arg) {
 	__try {
 		__try {
 			inputFile = CreateFile(fileName, GENERIC_READ, FILE_SHARE_READ, NULL, OPEN_EXISTING, 0, NULL);
+			if (inputFile == INVALID_HANDLE_VALUE)
+				RaiseException(0xE0000006, 0, 0, NULL);
+
+			/* Dynamically create an array of length the first value stored in
+			   the input file */
 			ReadFile(inputFile, &size, sizeof(DWORD), &nRead, NULL);
 			currentHeap = GetProcessHeap();
 			dynamicArray = (LPDWORD)HeapAlloc(currentHeap, HEAP_GENERATE_EXCEPTIONS, size * sizeof(DWORD));
+			
+			//Read the file and store the value in the array
 			while (ReadFile(inputFile, &value, sizeof(DWORD), &nRead, NULL) && nRead > 0) {
 				if (stop)
 					__leave;
@@ -81,7 +99,7 @@ DWORD WINAPI threadFunc2(LPVOID arg) {
 				index++;
 			}
 
-			//Order the array
+			//Order the array (bubble sort)
 			for (DWORD i = 0; i < size; i++) {
 				DWORD tmp = i;
 				while (tmp > 0 && dynamicArray[tmp - 1] > dynamicArray[tmp]) {
@@ -99,11 +117,11 @@ DWORD WINAPI threadFunc2(LPVOID arg) {
 			}
 		}
 		__except (EXCEPTION_EXECUTE_HANDLER) {
-			__leave;
+			stop = TRUE;
+			__leave; //All the cleaning work is done in the __finally block
 		}
 	}
 	__finally {
-		stop = TRUE;
 		CloseHandle(inputFile);
 		HeapFree(currentHeap, 0, dynamicArray);
 	}
