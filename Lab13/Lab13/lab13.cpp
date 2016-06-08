@@ -3,16 +3,17 @@
 CRITICAL_SECTION inputFileCS, outputUpdateCS;
 BOOLEAN stop = FALSE;
 HANDLE event;
-LPDWORD recordNumber;
+DWORD recordNumber[MAX_LENGTH], outputIndex;
 DWORD offset = 0;
 INT M;
-TCHAR outputFileName[MAX_LENGTH];
+OUTPUT_FILE outputFiles[MAX_LENGTH];
 
 INT _tmain(INT argc, LPTSTR argv[]) {
 	DWORD N;
 	LPHANDLE threadsHandles;
-	LPDWORD threadsIds, threadIndex;
+	LPDWORD threadsIds;
 	TCHAR a;
+	
 	if (argc != 4) {
 		return 1;
 	}
@@ -25,14 +26,13 @@ INT _tmain(INT argc, LPTSTR argv[]) {
 	InitializeCriticalSection(&inputFileCS);
 	InitializeCriticalSection(&outputUpdateCS);
 	event = CreateEvent(NULL, TRUE, FALSE, NULL);
-	recordNumber = (LPDWORD)malloc(N * sizeof(DWORD));
+	for (INT i = 0; i < MAX_LENGTH; i++)
+		recordNumber[i] = 0;
 
 	threadsHandles = (LPHANDLE)malloc((N + 1) * sizeof(HANDLE));
 	threadsIds = (LPDWORD)malloc((N + 1) * sizeof(DWORD));
 
 	for (DWORD i = 0; i < N; i++) {
-		threadIndex = (LPDWORD)malloc(sizeof(DWORD));
-		*threadIndex = i;
 		threadsHandles[i] = CreateThread(NULL, 0, threadFunction, argv[1], 0, &threadsIds[i]);
 	}
 	threadsHandles[N] = CreateThread(NULL, 0, updateFunction, NULL, 0, &threadsIds[N]);
@@ -47,7 +47,6 @@ DWORD WINAPI threadFunction(LPVOID arg) {
 	DWORD nIn, index = 0;
 	WIN32_FIND_DATA fileInfo;
 	TCHAR pattern[2 * MAX_LENGTH];
-	//index = *(LPDWORD)arg;
 	LPTSTR inputFileName;
 	inputFileName = (LPTSTR)arg;
 	while (!stop) {
@@ -59,16 +58,23 @@ DWORD WINAPI threadFunction(LPVOID arg) {
 		}
 		SetFilePointer(inputFile, offset * sizeof(Record), NULL, FILE_BEGIN);
 		ret = ReadFile(inputFile, &record, sizeof(Record), &nIn, NULL);
+		while (outputFiles[index].fileName != NULL) {
+			if (_tcscmp(outputFiles[index].fileName, record.outputName) == 0)
+				break;
+			index++;
+		}
+		if (outputFiles[index].fileName == NULL) {
+			outputFiles[index].fileName = record.outputName;
+			InitializeCriticalSection(&outputFiles[index].cs);
+		}
 		offset++;
 		CloseHandle(inputFile);
 		if (sizeof(Record) != nIn) {
 			LeaveCriticalSection(&inputFileCS);
 			stop = TRUE;
-			_ftprintf(stderr, _T("End\n"));
 			ExitThread(1);
 		}
 		LeaveCriticalSection(&inputFileCS);
-		recordNumber[index] = 0;
 
 		_tcscpy(pattern, record.directoryName);
 		_tcscat(pattern, record.inputFileName);
@@ -95,21 +101,23 @@ DWORD WINAPI threadFunction(LPVOID arg) {
 						rec.lineCount++;
 				}
 				CloseHandle(file);
-				file = CreateFile(record.outputName, GENERIC_WRITE, 0, NULL, OPEN_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
+				EnterCriticalSection(&outputFiles[index].cs);
+				file = CreateFile(record.outputName, GENERIC_WRITE, FILE_SHARE_READ, NULL, OPEN_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
 				if (file == INVALID_HANDLE_VALUE) {
-					_ftprintf(stderr, _T("Error %i when opening output file %s\n"), GetLastError(), record.outputName);
+					_ftprintf(stderr, _T("Error %i when opening output file %s (index = %i)\n"), GetLastError(), record.outputName, index);
 					ExitThread(1);
 				}
 				SetFilePointer(file, 0, NULL, FILE_END);
 				WriteFile(file, &rec, sizeof(OutputRecord), &nWrite, NULL);
 				recordNumber[index]++;
+				CloseHandle(file);
+				LeaveCriticalSection(&outputFiles[index].cs);
 				if (recordNumber[index] == M) {
 					PulseEvent(event);
 					EnterCriticalSection(&outputUpdateCS);
-					_tcscpy(outputFileName, record.outputName);
+					outputIndex = index;
 					recordNumber[index] = 0;
 				}
-				CloseHandle(file);
 			}
 		} while (FindNextFile(directory, &fileInfo));
 		PulseEvent(event);
@@ -123,18 +131,21 @@ DWORD WINAPI updateFunction(LPVOID arg) {
 	DWORD nRead;
 	while (!stop) {
 		WaitForSingleObject(event, INFINITE);
-		inputFile = CreateFile(outputFileName, GENERIC_READ, FILE_SHARE_READ, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
+		EnterCriticalSection(&outputFiles[outputIndex].cs);
+		inputFile = CreateFile(outputFiles[outputIndex].fileName, GENERIC_READ, FILE_SHARE_READ, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
 		if (inputFile == INVALID_HANDLE_VALUE) {
+			_ftprintf(stderr, _T("Error %i when opening the outputFile %s"), GetLastError(), outputFiles[outputIndex].fileName);
 			stop = TRUE;
 			ExitThread(0);
 		}
 		SetFilePointer(inputFile, -(M * (INT)sizeof(OutputRecord)), NULL, FILE_END);
-		_ftprintf(stdout, _T("--%s\n"), outputFileName);
+		_ftprintf(stdout, _T("------------------%s\n"), outputFiles[outputIndex].fileName);
 		for (INT i = 0; i < M; i++) {
 			ReadFile(inputFile, &rec, sizeof(OutputRecord), &nRead, NULL);
 			_ftprintf(stdout, _T("%s %i %i\n"), rec.fileName, rec.charCount, rec.lineCount);
 		}
 		CloseHandle(inputFile);
+		LeaveCriticalSection(&outputFiles[outputIndex].cs);
 		LeaveCriticalSection(&outputUpdateCS);
 	}
 	ExitThread(0);

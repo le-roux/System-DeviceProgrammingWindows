@@ -23,6 +23,11 @@ typedef struct OutputRecord {
 	DWORD lineCount;
 } OutputRecord;
 
+typedef struct OUTPUT_FILE {
+	LPTSTR fileName;
+	CRITICAL_SECTION cs;
+} OUTPUT_FILE;
+
 DWORD WINAPI threadFunction(LPVOID arg);
 DWORD WINAPI updateFunction(LPVOID arg);
 
