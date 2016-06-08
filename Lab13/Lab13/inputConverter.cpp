@@ -6,6 +6,7 @@ INT _tmain(INT argc, LPTSTR argv[]) {
 	FILE* inputFile;
 	Record record;
 	DWORD nOut;
+	TCHAR a;
 	if (argc != 3) {
 		return 1;
 	}
@@ -38,4 +39,5 @@ INT _tmain(INT argc, LPTSTR argv[]) {
 		_ftprintf(stdout, _T("%s %s %s\n"), record.directoryName, record.inputFileName, record.outputName);
 	}
 	CloseHandle(outputFile);
+	_ftscanf(stdin, _T("%c"), &a);
 }
