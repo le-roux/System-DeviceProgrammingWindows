@@ -24,8 +24,11 @@ typedef struct OutputRecord {
 } OutputRecord;
 
 DWORD WINAPI threadFunction(LPVOID arg);
+DWORD WINAPI updateFunction(LPVOID arg);
 
 DWORD GetFileType(LPWIN32_FIND_DATA fileInfo);
 #define TYPE_FILE 0
+#define TYPE_DIR 1
+#define TYPE_DOT 2
 
 #endif
