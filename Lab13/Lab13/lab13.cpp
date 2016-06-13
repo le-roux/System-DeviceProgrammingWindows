@@ -28,6 +28,7 @@ INT _tmain(INT argc, LPTSTR argv[]) {
 	InitializeCriticalSection(&outputUpdateCS);
 	event = CreateEvent(NULL, FALSE, FALSE, NULL);
 	backEvent = CreateEvent(NULL, FALSE, FALSE, NULL);
+	
 	for (INT i = 0; i < MAX_LENGTH; i++)
 		recordNumber[i] = 0;
 
@@ -47,12 +48,15 @@ INT _tmain(INT argc, LPTSTR argv[]) {
 	// Create the output thread
 	threadsHandles[N] = CreateThread(NULL, 0, updateFunction, NULL, 0, &threadsIds[N]);
 	
-	// Wait for all the threads
+	// Wait for all the explorer threads
 	WaitForMultipleObjects(N, threadsHandles, TRUE, INFINITE);
+	
+	// Cleaning
 	for (DWORD i = 0; i <= N; i++)
 		CloseHandle(threadsHandles[i]);
 	free(threadsHandles);
 	free(threadsIds);
+
 	_ftscanf(stdin, _T("%c"), &a);
 	return 0;
 }
@@ -115,17 +119,21 @@ DWORD WINAPI threadFunction(LPVOID arg) {
 				_tcscpy(rec.fileName, fileInfo.cFileName);
 				_tcscpy(filePath, record.directoryName);
 				_tcscat(filePath, fileInfo.cFileName);
+				
+				// Read the file
 				file = CreateFile(filePath, GENERIC_READ, FILE_SHARE_READ, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
 				if (file == INVALID_HANDLE_VALUE) {
 					_ftprintf(stderr, _T("Error %i when opening input file %s\n"), GetLastError(), filePath);
 					ExitThread(1);
 				}
+
 				// Compute the statistics
 				while (ReadFile(file, &read, sizeof(CHAR), &nRead, NULL) && nRead > 0) {
 					rec.charCount++;
 					if (read == '\n')
 						rec.lineCount++;
 				}
+
 				CloseHandle(file);
 
 				// Update the output file
@@ -138,11 +146,13 @@ DWORD WINAPI threadFunction(LPVOID arg) {
 				WriteFile(file, &rec, sizeof(OutputRecord), &nWrite, NULL);
 				CloseHandle(file);
 
+				// Check if an output is necessary
 				EnterCriticalSection(&outputFiles[index].cs);
 				recordNumber[index]++;
 				if (recordNumber[index] == M) {
 					recordNumber[index] = 0;
 					LeaveCriticalSection(&outputFiles[index].cs);
+					
 					// Signal the output thread
 					EnterCriticalSection(&outputUpdateCS);
 					outputIndex = index;
@@ -163,8 +173,11 @@ DWORD WINAPI updateFunction(LPVOID arg) {
 	HANDLE inputFile;
 	OutputRecord rec;
 	DWORD nRead;
+
 	while (!stop) {
 		WaitForSingleObject(event, INFINITE);
+		
+		// Read the file
 		inputFile = CreateFile(outputFiles[outputIndex].fileName, GENERIC_READ, FILE_SHARE_READ, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
 		if (inputFile == INVALID_HANDLE_VALUE) {
 			_ftprintf(stderr, _T("Error %i when opening the outputFile %s"), GetLastError(), outputFiles[outputIndex].fileName);
