@@ -21,6 +21,7 @@ typedef struct OutputRecord {
 	TCHAR fileName[MAX_LENGTH];
 	DWORD charCount;
 	DWORD lineCount;
+	DWORD fileCount;
 } OutputRecord;
 
 typedef struct OUTPUT_FILE {
