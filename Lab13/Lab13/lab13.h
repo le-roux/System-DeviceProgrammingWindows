@@ -25,8 +25,9 @@ typedef struct OutputRecord {
 } OutputRecord;
 
 typedef struct OUTPUT_FILE {
-	LPTSTR fileName;
+	TCHAR fileName[MAX_LENGTH];
 	CRITICAL_SECTION cs;
+	BOOLEAN valid = FALSE;
 } OUTPUT_FILE;
 
 DWORD WINAPI threadFunction(LPVOID arg);

@@ -37,6 +37,11 @@ INT _tmain(INT argc, LPTSTR argv[]) {
 	// Create the explorer threads
 	for (DWORD i = 0; i < N; i++) {
 		threadsHandles[i] = CreateThread(NULL, 0, threadFunction, argv[1], 0, &threadsIds[i]);
+		if (threadsHandles[i] == NULL) {
+			for (DWORD j = 0; j <= i; j++) {
+				CloseHandle(threadsHandles[j]);
+			}
+		}
 	}
 
 	// Create the output thread
@@ -44,6 +49,10 @@ INT _tmain(INT argc, LPTSTR argv[]) {
 	
 	// Wait for all the threads
 	WaitForMultipleObjects(N, threadsHandles, TRUE, INFINITE);
+	for (DWORD i = 0; i <= N; i++)
+		CloseHandle(threadsHandles[i]);
+	free(threadsHandles);
+	free(threadsIds);
 	_ftscanf(stdin, _T("%c"), &a);
 	return 0;
 }
@@ -70,13 +79,13 @@ DWORD WINAPI threadFunction(LPVOID arg) {
 		
 		// Find the index corresponding to the output file
 		index = 0;
-		while (outputFiles[index].fileName != NULL) {
+		while (outputFiles[index].valid) {
 			if (_tcscmp(outputFiles[index].fileName, record.outputName) == 0)
 				break;
 			index++;
 		}
-		if (outputFiles[index].fileName == NULL) {
-			outputFiles[index].fileName = (LPTSTR)malloc(sizeof(TCHAR) * _tcslen(record.outputName));
+		if (!outputFiles[index].valid) {
+			outputFiles[index].valid = TRUE;
 			_tcscpy(outputFiles[index].fileName, record.outputName);
 			InitializeCriticalSection(&outputFiles[index].cs);
 		}
